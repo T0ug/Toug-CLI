@@ -40,6 +40,10 @@ export class PipelineEngine {
         return config.models[role] || config.models.orchestrator;
     }
 
+    public injectContext(content: string): void {
+        this.history.push({ role: 'system', content });
+    }
+
     public getActiveConfig() {
         const role = this.getRoleForState(this.state);
         const model = this.getModelForRole(role);

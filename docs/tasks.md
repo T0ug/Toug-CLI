@@ -38,10 +38,10 @@
 - [x] Bloqueio de comandos admin
 
 ## Fase 6 — Inicialização inteligente
-- [ ] Detecção de estado do projeto (docs/ existe? código existe?)
-- [ ] Fluxo Project Research para projetos existentes
-- [ ] Fluxo Discovery para projetos novos
-- [ ] Exibição de status no terminal ao carregar
+- [x] Detecção de estado do projeto (docs/ existe? código existe?)
+- [x] Fluxo Project Research para projetos existentes
+- [x] Fluxo Discovery para projetos novos
+- [x] Exibição de status no terminal ao carregar
 
 ## Fase 7 — Persistência de sessões
 - [ ] Salvar histórico de mensagens em pasta local

@@ -35,6 +35,9 @@ class PipelineEngine {
         const config = (0, configManager_1.loadConfig)();
         return config.models[role] || config.models.orchestrator;
     }
+    injectContext(content) {
+        this.history.push({ role: 'system', content });
+    }
     getActiveConfig() {
         const role = this.getRoleForState(this.state);
         const model = this.getModelForRole(role);

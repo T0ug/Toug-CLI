@@ -20,9 +20,11 @@
 - [x] Reviewer — Verificação da compilação, loops contínuos interativos CLI limpos e status report `review_report.md` formalizado.
 - [x] Executor — Task 006 mapeando shell Tool Runners purista interceptados num Sniffer XML.
 - [x] Reviewer — `review_report.md` da execução manual blindada assinado. Todo o ecossistema O.S CLI está online.
+- [x] Executor — Task 007 implementando ProjectDetector com inicialização inteligente (5/5 artefatos detectados em runtime).
+- [x] Reviewer — Task 007 aprovada com evidência de Runtime demonstrando detecção automática e transição correta de estado.
 
 ### Próximo passo
-- [ ] Orchestrator — Retomar controle para preparar a Task 007 (Fase 6: Automações de Workflow e Mapeamentos dos Agents).
+- [ ] Orchestrator — Retomar controle para preparar a Task 008 (Fase 7: Persistência de Sessões).
 
 ## Resumo do projeto
 CLI de terminal em Node.js/TypeScript que conecta a modelos de IA locais (Ollama/Docker) para desenvolvimento assistido com pipeline forçada. MVP pessoal, Windows only.
