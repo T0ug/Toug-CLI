@@ -12,14 +12,14 @@ docker exec -it toug_ollama ollama pull qwen3:14b
 echo Verificando e baixando: qwen3:30b-instruct
 docker exec -it toug_ollama ollama pull qwen3:30b-instruct
 
-echo Verificando e baixando: deepseek-r1-distill-qwen-32b
-docker exec -it toug_ollama ollama pull deepseek-r1-distill-qwen-32b
+echo Verificando e baixando: deepseek-r1:32b
+docker exec -it toug_ollama ollama pull deepseek-r1:32b
 
 echo Verificando e baixando: gemma3:27b
 docker exec -it toug_ollama ollama pull gemma3:27b
 
-echo Verificando e baixando: devstral-small
-docker exec -it toug_ollama ollama pull devstral:small
+echo Verificando e baixando: devstral-small-2
+docker exec -it toug_ollama ollama pull devstral-small-2
 
 echo ========================================================
 echo Download Finalizado!
