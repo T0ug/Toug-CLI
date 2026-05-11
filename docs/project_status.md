@@ -1,16 +1,20 @@
 # Project Status — Toug CLI
 
-## Status atual: Discovery completo ✅
+## Status atual: Fase 1 (Infraestrutura Base) Concluída ✅
 
-## Fase: Definição de projeto
+## Fase: Execução / Validação (Cycle 1)
 
 ### Concluído
-- [x] Clarify Intent — 16 perguntas + 3 follow-ups
-- [x] Understanding Lock — confirmado pelo usuário
-- [x] Artefatos iniciais criados: idea.md, scope.md, non_goals.md, decision_log.md, tasks.md
+- [x] Clarify Intent (Discovery) concluído com 16 perguntas e Understanding Lock aprovado.
+- [x] Design Architecture — Blocos validados: 1. Componentes (State Machine), 2. Fluxo e Persistência, 3. Integrações e Errors.
+- [x] Relatório de `architecture.md` gerado.
+- [x] Executor — Task 001 implementada perfeitamente.
+- [x] Reviewer — `review_report.md` gerado validando a arquitetura inicial.
+- [x] Executor — Task 002 (Setup Docker) isolada e criada perfeitamente na pasta `docker/`.
+- [x] Reviewer — Docker setup validado como operável para rodar a network API.
 
 ### Próximo passo
-- [ ] Architect — design_architecture (definir arquitetura técnica detalhada)
+- [ ] Orchestrator — Retomar controle para preparar a Task 003 (Conexão Node.js -> Ollama API e Config).
 
 ## Resumo do projeto
 CLI de terminal em Node.js/TypeScript que conecta a modelos de IA locais (Ollama/Docker) para desenvolvimento assistido com pipeline forçada. MVP pessoal, Windows only.

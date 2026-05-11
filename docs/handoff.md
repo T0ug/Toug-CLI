@@ -1,40 +1,21 @@
-# Handoff — Discovery → Architect
+# Handoff Operacional
 
 ## Data: 2026-05-11
 
-## Agent de origem: Discovery
-## Agent de destino: Architect
-## Skill sugerida: design_architecture
+## Agent de origem: Executor
+## Agent de destino: Reviewer
+## Skill sugerida: validate_delivery
 
 ---
 
-## O que foi feito
+## O que foi feito (Task 002 - Setup Docker Ollama)
+- Criada a pasta `/docker` na raiz.
+- Criado o arquivo `docker-compose.yml` mapeando o ambiente do `ollama` para porta `11434` e volume para `/root/.ollama` (incluindo snippet documentado para habilitar modo GPU opcional em servidores infra-prontos).
+- Criados os scripts `pull_models.sh` (Linux/Mac) e `pull_models.bat` (Win) contendo automatização do CLI local no container (ex: `docker exec -it toug_ollama ollama pull ...`) para todos os modelos listados no projeto via Assumption Scope (qwen, gemma, deepseek).
 
-O Discovery completou a fase de clarificação de intenção (clarify_intent):
-- 16 rodadas de perguntas + 3 follow-ups
-- Understanding Lock gerado e confirmado pelo usuário
-- Todos os artefatos iniciais criados em `docs/`
+## Artefatos para Análise
+- Diretório `/docker` contendo `docker-compose.yml`, `pull_models.sh`, `pull_models.bat`.
+- `docs/task_002.md`
 
-## Artefatos gerados
-
-- `docs/idea.md` — definição do problema e proposta de valor
-- `docs/scope.md` — funcionalidades incluídas no MVP
-- `docs/non_goals.md` — o que está fora do MVP
-- `docs/decision_log.md` — 12 decisões iniciais registradas
-- `docs/tasks.md` — divisão macro em 9 fases
-- `docs/project_status.md` — status atual
-
-## O que o próximo agent precisa fazer
-
-O **Architect** deve:
-1. Ler todos os artefatos em `docs/`
-2. Definir a arquitetura técnica detalhada do Toug CLI
-3. Decidir: estrutura de pastas do projeto, padrões de comunicação com Ollama, como o Orchestrator roteia mensagens, como a pipeline é embutida, sistema de aprovação de comandos, persistência de sessões
-4. Atualizar `docs/` com artefatos de arquitetura
-
-## Contexto crítico
-
-- A pipeline contida em `PIPELINE_EXAMPLE/.agents/` é a base para embutir no CLI
-- Os modelos por agent estão definidos na tabela em `docs/scope.md`
-- O servidor Ollama estará em máquina separada na rede local
-- Não há autenticação — rede confiável
+## Observações
+A Task está completa e delimitada. Nenhuma integração com Nodejs ocorreu nesta etapa conforme estrito mandato. Aguardo avaliação antes de voltarmos ao Orchestrator.

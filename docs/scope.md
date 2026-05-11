@@ -33,25 +33,29 @@
 - Aprovação do usuário por padrão
 - Modo auto-approve configurável (exceto admin)
 
-### 5. Pipeline enforcement
+### 5. Setup do Servidor Dedicado (Docker)
+- Configuração do `docker-compose.yml` para rodar o Ollama (GPU/CPU).
+- Scripts auxiliares (ex: `pull_models.sh`) para realizar o download prévio dos modelos mapeados.
+
+### 6. Pipeline enforcement
 - Pipeline fixa e embutida no CLI
 - Agents forçados a seguir o fluxo definido
 - Baseada na estrutura `.agents/` da PIPELINE_EXAMPLE
 
-### 6. Gestão de artefatos
+### 7. Gestão de artefatos
 - Leitura e escrita em `docs/` do projeto
 - Artefatos: idea.md, scope.md, tasks.md, decision_log.md, handoff.md, project_status.md, etc.
 
-### 7. Persistência de sessões
+### 8. Persistência de sessões
 - Histórico salvo em pasta local (instalação do CLI)
 - Retomada de sessões anteriores
 - Compressão automática de contexto a ~200k tokens
 
-### 8. Configuração
+### 9. Configuração
 - Arquivo `toug.config.json`
 - Setup na primeira inicialização
 
-### 9. Distribuição
+### 10. Distribuição
 - npm global: `npm install -g toug-cli`
 - Repositório GitHub: "Toug CLI"
 - Releases versionadas

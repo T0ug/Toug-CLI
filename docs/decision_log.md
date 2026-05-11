@@ -21,5 +21,10 @@
 | 008 | 2026-05-11 | Compressão de contexto a ~200k tokens | Modelos locais têm context window limitado; docs/ garante continuidade | Discovery |
 | 009 | 2026-05-11 | Distribuição via npm global | Padrão para CLIs TypeScript; facilita instalação e versionamento | Discovery |
 | 010 | 2026-05-11 | Sem autenticação no Ollama | MVP em rede local confiável; simplifica implementação | Discovery |
-| 011 | 2026-05-11 | Windows only no MVP | Ambiente do criador; simplifica escopo inicial | Discovery |
 | 012 | 2026-05-11 | Labels agent+modelo em cada mensagem | Transparência sobre qual IA está respondendo e com qual modelo | Discovery |
+| 013 | 2026-05-11 | Arquitetura de Máquina de Estados Finita | Melhor enforcement da pipeline vs. Event-driven, mais fácil rastrear falhas do modelo | Architect |
+| 014 | 2026-05-11 | Persistência de sessões no AppData (SQLite/JSONL) | Isolar histórico sujo de CWD do usuário, mantendo apenas `docs/` visível e fresco | Architect |
+| 015 | 2026-05-11 | HTTP nativo via fetch/undici com SSE parsing | Evitar SDKs opacos como openai/sdk para ter fail-safe customizado no streaming | Architect |
+| 016 | 2026-05-11 | Self-healing em falhas de STDERR de subprocessos | Não crashar CLI; devolver log de erro pra IA iterar na correção sem intervir | Architect |
+| 017 | 2026-05-11 | Context Auto-Compression | Compactar o histórico da DB local aos 200k chars, sem impactar o context `docs/` lido em runtime | Architect |
+| 018 | 2026-05-11 | Controle do Docker pelo projeto | Usuário exigiu que a configuração do Ollama Server no Docker seja versionada junto ao projeto (correção de Assunção) | Orchestrator |

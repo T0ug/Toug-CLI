@@ -3,13 +3,15 @@
 > Visão macro — detalhamento será feito pelo Architect e Executor.
 
 ## Fase 1 — Infraestrutura base
-- [ ] Inicializar projeto Node.js/TypeScript
-- [ ] Configurar build, lint, e estrutura de pastas
-- [ ] Criar repositório GitHub "Toug CLI"
-- [ ] Configurar npm package para instalação global
+- [x] Inicializar projeto Node.js/TypeScript
+- [x] Configurar build, lint, e estrutura de pastas
+- [x] Criar repositório GitHub "Toug CLI"
+- [x] Configurar npm package para instalação global
 
-## Fase 2 — Conexão com Ollama
-- [ ] Implementar client Ollama API (chat, streaming)
+## Fase 2 — Infraestrutura Ollama (Docker + Client)
+- [x] Configurar `docker-compose.yml` para o Ollama
+- [x] Criar script de setup para baixar os modelos listados
+- [ ] Implementar client Ollama API em Node.js (chat, streaming)
 - [ ] Sistema de configuração (`toug.config.json`)
 - [ ] Setup da primeira inicialização
 - [ ] Health check do servidor Ollama
