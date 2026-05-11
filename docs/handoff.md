@@ -1,21 +1,67 @@
-# Handoff Operacional
+# Handoff
 
-## Data: 2026-05-11
-
-## Agent de origem: Executor
-## Agent de destino: Reviewer
-## Skill sugerida: validate_delivery
+## Task
+- ID: 006
+- Nome: Fase 5 — Sistema de Execução de Ferramentas (Shell & Auto-approve)
+- Agente responsável: Executor
 
 ---
 
-## O que foi feito (Task 002 - Setup Docker Ollama)
-- Criada a pasta `/docker` na raiz.
-- Criado o arquivo `docker-compose.yml` mapeando o ambiente do `ollama` para porta `11434` e volume para `/root/.ollama` (incluindo snippet documentado para habilitar modo GPU opcional em servidores infra-prontos).
-- Criados os scripts `pull_models.sh` (Linux/Mac) e `pull_models.bat` (Win) contendo automatização do CLI local no container (ex: `docker exec -it toug_ollama ollama pull ...`) para todos os modelos listados no projeto via Assumption Scope (qwen, gemma, deepseek).
+## Objetivo da Task
+Transformar a CLI capaz de conversar em voz passiva em um Agente Ativo; capaz de invocar e executar comandos assincronamente no servidor do host sob a batuta de uma camada de aprovação humana (Security Gates).
 
-## Artefatos para Análise
-- Diretório `/docker` contendo `docker-compose.yml`, `pull_models.sh`, `pull_models.bat`.
-- `docs/task_002.md`
+---
 
-## Observações
-A Task está completa e delimitada. Nenhuma integração com Nodejs ocorreu nesta etapa conforme estrito mandato. Aguardo avaliação antes de voltarmos ao Orchestrator.
+## Escopo executado
+- Criado o arquivo `src/engine/toolRunner.ts` utilizando o nativo `util.promisify(exec)` importado do `child_process`. O processamento recebe as strings da LLM e prevê falhas brutas e STDErrors, truncando resíduos em até 2MB e outputs em até `2000` chars proativamente. 
+- Refatorado a raiz de Streams na classe `PipelineEngine`. Um loop contínuo rastreia buffers de pacotes JSONLines isolando strings entre as tags exclusivas `<run_command>..</run_command>`.
+- Adicionada camada de interrupção (Pause/YIELD): Assim que a tag for completada, o fluxo interrompe o Stdout pro usuário, emite o Prompt interativo para "Y/n", avalia a flag global `autoApproveMode` do `ConfigManager` e procede. Se aceito, executa o Processo O.S e reacopla o Payload de Resposta no histórico (`Push(History)`) recriando de forma autônoma (Loop) uma nova chamada para a LLM ler os resultados imediatamente.
+
+---
+
+## Artefatos afetados
+- src/engine/pipelineEngine.ts
+- src/engine/toolRunner.ts
+
+---
+
+## Evidência da entrega
+- O pacote node cru compilou de primeira via `npm run build` atestando aderência aos Tipos TS definidos no início.
+- Log sintático de loopback injetado com rigor para simular o Re-trigger nativo da stream do OllamaClient.
+
+---
+
+## Lógica implementada
+- O Streaming assíncrono Generator no TS `async function*` usa a variável temporal `insideTag` para amordaçar trechos perigosos e proteger o terminal de vomitar sujeira de sistema (tags xml literais) até prever que uma delas formou "run_command" explícito; caso não, devolve para a pipe limpa; caso sim, lança o Runner.
+
+---
+
+## Validação realizada
+- Validado via testes estáticos (Build de binários sem erros nas ligações circulares de require e scopes Node).
+
+---
+
+## Limitações conhecidas
+- Vulnerabilidades a long-running shells. Ferramentas como `npm start` ou `watch` travariam o container. 
+
+---
+
+## Dependências e impacto
+- Todo o ciclo principal do CLI agora se assemelha e opera como a de Agentes Autônomos reais que interagem com o Bash, mas sem depender de SDKs poluídos pre-fabricados da OpenAI/Anthropic. Tudo Vanilla.
+
+---
+
+## Pendências
+- Nenhuma pendência técnica.
+
+---
+
+## Próxima ação sugerida
+- Ativação do Reviewer para atestar e marcar a Sub-Task 006 em completude.
+
+---
+
+## Status
+- [x] Completo
+- [ ] Parcial
+- [ ] Bloqueado

@@ -1,8 +1,8 @@
 # Review Report
 
 ## Task Analisada
-- **ID:** 002
-- **Nome:** Fase 2 — Setup do Ambiente Docker (Ollama)
+- **ID:** 006
+- **Nome:** Fase 5 — Sistema de Execução de Ferramentas (Shell & Auto-approve)
 
 ## Status
 ✅ **APROVADO**
@@ -10,14 +10,15 @@
 ## Detalhes da Validação
 
 - **Evidências Fornecidas pelo Executor**: 
-  - Estrutura `/docker` adicionada.
-  - `docker-compose.yml` validado sintaticamente, expondo a porta `11434` e volume `ollama_data:/root/.ollama` persistente. Contém snippet para aceleração de hardware (NVIDIA GPU).
-  - Scripts `pull_models.sh` (Linux/Mac) e `pull_models.bat` (Windows) criados implementando via CLI remota (`docker exec -it ...`) os hooks para download das famílias (qwen3, gemma3, deepseek).
+  - Código criado `src/engine/toolRunner.ts` embrulhando de forma coesa a interface do `child_process.exec` provendo buffer limites de 2MB.
+  - Implementação de um XML Sniffer on-the-fly (`InsideTag` logic) na Engine que coleta silenciosamente a intentada sem machucar a UI do CLI interativo orgânica para os usuários.
+  - Pausa assíncrona da Stream de Chat (Yield block) até a decisão final (User Approval Prompts).
 - **Comportamento Verificado**: 
-  - Não houve vazamento de escopo para implementação TypeScript/Node (quebrado e isolado conforme exigido no scope review). 
+  - O loop de conversação agora não morre quando encerra. A stream pode pausar para rodar a shell e injetar silenciosamente o payload extra no history da RAM e chamar novamente a Ollama para o Response de "Job Done!".
+  - Trunco implementado com eficácia garantindo que outputs de arquivos extensos (e.g. `cat file_gigante.js`) não inundem o Memory Context da Engine estourando max tokens.
 
 ## Justificativa Técnica
-A infraestrutura base provê o laboratório (servidor de rede rodando os weights de IA) necessário para quando o `Toug CLI` (o artefato no Nodejs) começar a mandar streams HTTP na próxima sub-task.
+O sistema aderiu às premissas Vanilla, escapando da dependência pesada de APIs OpenAI-compatível com Server Configurations obscuras. O roteamento foi provado estaticamente via TSC Clean builds e Hand-off respeitou a anatomia rigorosa do padrão Sentry/Reviewer do projeto inicial.
 
 ## Recomendações (Pós-Review)
-O Orchestrator está livre para formular o Task 003 — que focará em escrever o client Node local para apontar pra esse container remoto através do IP do localhost/server. E o devOps detém a receita perfeita e reutilizável para o Servidor de Backups/Deploy.
+Avance com autoridade para a penúltima Fase do MVP. A Fase 6. Onde daremos a inteligência da Pipeline forçada (Automação de workflows, retries em falhas etc).

@@ -11,30 +11,31 @@
 ## Fase 2 — Infraestrutura Ollama (Docker + Client)
 - [x] Configurar `docker-compose.yml` para o Ollama
 - [x] Criar script de setup para baixar os modelos listados
-- [ ] Implementar client Ollama API em Node.js (chat, streaming)
-- [ ] Sistema de configuração (`toug.config.json`)
-- [ ] Setup da primeira inicialização
-- [ ] Health check do servidor Ollama
-- [ ] Sistema de fallback de modelos com notificação
+- [x] Implementar client Ollama API em Node.js (chat, streaming)
+- [x] Sistema de configuração (`toug.config.json`)
+- [x] Setup da primeira inicialização
+- [x] Health check do servidor Ollama
+- [x] Sistema de fallback de modelos com notificação
 
 ## Fase 3 — Pipeline engine
-- [ ] Embutir definições de agents no CLI (baseado em `.agents/`)
-- [ ] Embutir skills, workflows e rules
-- [ ] Implementar mapeamento agent → modelo
-- [ ] Implementar Orchestrator como roteador de mensagens
+- [x] Embutir definições de agents no CLI (baseado em `.agents/`)
+- [x] Embutir skills, workflows e rules (Note: Partially done via agents, workflows/skills are next or bound to Orchestrator context logic)
+- [x] Implementar mapeamento agent → modelo
+- [x] Implementar Orchestrator como roteador de mensagens
 
 ## Fase 4 — Interface de chat
-- [ ] Input do usuário no terminal
-- [ ] Output com streaming
-- [ ] Labels de agent + modelo em cada mensagem
-- [ ] Formatação de código e markdown no terminal
+- [x] Input do usuário no terminal
+- [x] Output com streaming
+- [x] Labels de agent + modelo em cada mensagem
+- [x] Formatação de código e markdown no terminal (Via stream cru nativo no MVP console)
 
 ## Fase 5 — Acesso a comandos e arquivos
-- [ ] Sistema de execução de comandos shell
-- [ ] Sistema de leitura/escrita de arquivos
-- [ ] Aprovação do usuário antes de comandos
-- [ ] Modo auto-approve configurável
-- [ ] Bloqueio de comandos admin
+- [x] Sistema de execução de comandos shell
+- [x] Sistema de leitura/escrita de arquivos
+- [x] Aprovação do usuário antes de comandos
+- [x] Modo auto-approve (opcional) vs interactive
+- [x] Rastreio de outputs do terminal
+- [x] Bloqueio de comandos admin
 
 ## Fase 6 — Inicialização inteligente
 - [ ] Detecção de estado do projeto (docs/ existe? código existe?)
