@@ -4,3 +4,4 @@ dist/
 *.log
 .agents/
 gemini.md
+gpush.ps1
