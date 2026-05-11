@@ -7,7 +7,7 @@
     "doc": "docs"
   },
   "bin": {
-    "toug": "./dist/index.js"
+    "toug": "dist/index.js"
   },
   "scripts": {
     "build": "tsc",
