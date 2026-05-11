@@ -1,0 +1,6 @@
+node_modules/
+dist/
+.toug-cli/
+*.log
+.agents/
+gemini.md

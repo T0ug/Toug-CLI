@@ -6,6 +6,7 @@ const ollamaClient_1 = require("./ollamaClient");
 const configManager_1 = require("../data/configManager");
 const chatInterface_1 = require("../cli/chatInterface");
 const toolRunner_1 = require("./toolRunner");
+const artifactManager_1 = require("./artifactManager");
 class PipelineEngine {
     state = 'IDLE';
     ollamaClient;
@@ -38,6 +39,15 @@ class PipelineEngine {
     injectContext(content) {
         this.history.push({ role: 'system', content });
     }
+    getHistory() {
+        return this.history;
+    }
+    setHistory(history) {
+        this.history = history;
+    }
+    setState(state) {
+        this.state = state;
+    }
     getActiveConfig() {
         const role = this.getRoleForState(this.state);
         const model = this.getModelForRole(role);
@@ -68,12 +78,16 @@ class PipelineEngine {
                 if (chunk.includes('<') || insideTag) {
                     insideTag = true;
                     tagBuffer += chunk;
-                    if (tagBuffer.includes('</run_command>')) {
+                    const hasClosingTag = tagBuffer.includes('</run_command>') ||
+                        tagBuffer.includes('</read_file>') ||
+                        tagBuffer.includes('</write_file>');
+                    const hasOpeningTag = tagBuffer.includes('<run_command>') ||
+                        tagBuffer.includes('<read_file>') ||
+                        tagBuffer.includes('<write_file');
+                    if (hasClosingTag) {
                         insideTag = false;
-                        // Mutar totalmente do stdout da interface o xml secreto
                     }
-                    else if (tagBuffer.length > 35 && !tagBuffer.includes('<run_command>')) {
-                        // Alarme falso. Solte o buffer represado para o dev
+                    else if (tagBuffer.length > 40 && !hasOpeningTag) {
                         yield tagBuffer;
                         tagBuffer = '';
                         insideTag = false;
@@ -84,27 +98,59 @@ class PipelineEngine {
                 }
             }
             this.history.push({ role: 'assistant', content: assistantResponse });
-            // Verificar se na string capturada por completo existia algo para o Sistema:
-            const match = /<run_command>([\s\S]*?)<\/run_command>/i.exec(assistantResponse);
-            if (match) {
-                const command = match[1].trim();
+            // === TOOL: run_command ===
+            const cmdMatch = /<run_command>([\s\S]*?)<\/run_command>/i.exec(assistantResponse);
+            if (cmdMatch) {
+                const command = cmdMatch[1].trim();
                 let approved = config.autoApproveMode;
                 if (!approved) {
-                    const ans = await (0, chatInterface_1.promptUser)(`\n${chatInterface_1.COLORS.YELLOW}[SYSTEM] A IA solicitou rolar no shell: '${command}'. Permitir? Y/n: ${chatInterface_1.COLORS.RESET}`);
-                    if (ans.toLowerCase() !== 'n') {
+                    const ans = await (0, chatInterface_1.promptUser)(`\n${chatInterface_1.COLORS.YELLOW}[TOOL] Executar comando: '${command}'. Permitir? Y/n: ${chatInterface_1.COLORS.RESET}`);
+                    if (ans.toLowerCase() !== 'n')
                         approved = true;
-                    }
                 }
                 if (approved) {
-                    yield `\n${chatInterface_1.COLORS.YELLOW}[Executando no Sistema O.S...]\n${chatInterface_1.COLORS.RESET}`;
+                    yield `\n${chatInterface_1.COLORS.YELLOW}[Executando...]${chatInterface_1.COLORS.RESET}\n`;
                     const result = await (0, toolRunner_1.executeShellCommand)(command);
                     this.history.push({ role: 'system', content: `Resultado do comando '${command}':\n${result}` });
-                    keepRunning = true; // Auto re-engatilha
                 }
                 else {
-                    this.history.push({ role: 'system', content: `O usuário RECUSOU a execução do comando '${command}'. Lide com a recusa.` });
-                    keepRunning = true; // Devolve pra IA saber que falhou e contornar
+                    this.history.push({ role: 'system', content: `Usuário RECUSOU execução de '${command}'.` });
                 }
+                keepRunning = true;
+            }
+            // === TOOL: read_file ===
+            const readMatch = /<read_file>([\s\S]*?)<\/read_file>/i.exec(assistantResponse);
+            if (readMatch) {
+                const filePath = readMatch[1].trim();
+                const cwd = process.cwd();
+                const content = (0, artifactManager_1.readArtifact)(filePath, cwd);
+                this.history.push({ role: 'system', content: `Conteúdo de '${filePath}':\n${content}` });
+                yield `\n${chatInterface_1.COLORS.CYAN}[Lido: ${filePath}]${chatInterface_1.COLORS.RESET}\n`;
+                keepRunning = true;
+            }
+            // === TOOL: write_file ===
+            const writeMatch = /<write_file\s+path="([^"]+)">(([\s\S]*?))<\/write_file>/i.exec(assistantResponse);
+            if (writeMatch) {
+                const filePath = writeMatch[1].trim();
+                const fileContent = writeMatch[2];
+                let approved = config.autoApproveMode;
+                if (!approved) {
+                    const preview = fileContent.length > 200 ? fileContent.substring(0, 200) + '...' : fileContent;
+                    yield `\n${chatInterface_1.COLORS.YELLOW}[TOOL] Gravar arquivo: '${filePath}'\nPreview: ${preview}${chatInterface_1.COLORS.RESET}\n`;
+                    const ans = await (0, chatInterface_1.promptUser)(`${chatInterface_1.COLORS.YELLOW}Permitir gravação? Y/n: ${chatInterface_1.COLORS.RESET}`);
+                    if (ans.toLowerCase() !== 'n')
+                        approved = true;
+                }
+                if (approved) {
+                    const cwd = process.cwd();
+                    const result = (0, artifactManager_1.writeArtifact)(filePath, fileContent, cwd);
+                    this.history.push({ role: 'system', content: result });
+                    yield `\n${chatInterface_1.COLORS.GREEN}[Gravado: ${filePath}]${chatInterface_1.COLORS.RESET}\n`;
+                }
+                else {
+                    this.history.push({ role: 'system', content: `Usuário RECUSOU gravação de '${filePath}'.` });
+                }
+                keepRunning = true;
             }
         }
     }

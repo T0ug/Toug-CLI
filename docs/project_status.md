@@ -22,9 +22,19 @@
 - [x] Reviewer — `review_report.md` da execução manual blindada assinado. Todo o ecossistema O.S CLI está online.
 - [x] Executor — Task 007 implementando ProjectDetector com inicialização inteligente (5/5 artefatos detectados em runtime).
 - [x] Reviewer — Task 007 aprovada com evidência de Runtime demonstrando detecção automática e transição correta de estado.
+- [x] Executor — Task 008 implementando persistência de sessões com auto-save, restore e compressão de contexto.
+- [x] Reviewer — Task 008 aprovada com evidência de save automático confirmado em runtime.
+- [x] Executor — Task 009 implementando gestão de artefatos (read/write via XML tags) e System Prompts atualizados com TOOLS_INSTRUCTION.
+- [x] Reviewer — Task 009 aprovada. Pipeline Engine agora possui 3 ferramentas ativas.
+- [x] Executor — Task 010 criando README.md, .gitignore, e metadados de publicação no package.json.
+- [x] Reviewer — Task 010 aprovada. **MVP CONCLUÍDO.**
 
-### Próximo passo
-- [ ] Orchestrator — Retomar controle para preparar a Task 008 (Fase 7: Persistência de Sessões).
+### Status Final
+✅ **O PROJETO ESTÁ COMPLETO.** Todas as 9 fases do MVP foram implementadas, revisadas e aprovadas.
+
+### Pendente (manual)
+- [ ] Push final para o GitHub.
+- [ ] Publicação no npm (opcional, manual pelo owner).
 
 ## Resumo do projeto
 CLI de terminal em Node.js/TypeScript que conecta a modelos de IA locais (Ollama/Docker) para desenvolvimento assistido com pipeline forçada. MVP pessoal, Windows only.

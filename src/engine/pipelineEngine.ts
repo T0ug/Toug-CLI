@@ -4,6 +4,7 @@ import { OllamaClient, Message } from './ollamaClient';
 import { loadConfig } from '../data/configManager';
 import { promptUser, COLORS } from '../cli/chatInterface';
 import { executeShellCommand } from './toolRunner';
+import { readArtifact, writeArtifact } from './artifactManager';
 
 export class PipelineEngine {
     private state: PipelineState = 'IDLE';
@@ -42,6 +43,18 @@ export class PipelineEngine {
 
     public injectContext(content: string): void {
         this.history.push({ role: 'system', content });
+    }
+
+    public getHistory(): Message[] {
+        return this.history;
+    }
+
+    public setHistory(history: Message[]): void {
+        this.history = history;
+    }
+
+    public setState(state: PipelineState): void {
+        this.state = state;
     }
 
     public getActiveConfig() {
@@ -84,11 +97,16 @@ export class PipelineEngine {
                     insideTag = true;
                     tagBuffer += chunk;
 
-                    if (tagBuffer.includes('</run_command>')) {
+                    const hasClosingTag = tagBuffer.includes('</run_command>') ||
+                        tagBuffer.includes('</read_file>') ||
+                        tagBuffer.includes('</write_file>');
+                    const hasOpeningTag = tagBuffer.includes('<run_command>') ||
+                        tagBuffer.includes('<read_file>') ||
+                        tagBuffer.includes('<write_file');
+
+                    if (hasClosingTag) {
                         insideTag = false;
-                        // Mutar totalmente do stdout da interface o xml secreto
-                    } else if (tagBuffer.length > 35 && !tagBuffer.includes('<run_command>')) {
-                        // Alarme falso. Solte o buffer represado para o dev
+                    } else if (tagBuffer.length > 40 && !hasOpeningTag) {
                         yield tagBuffer;
                         tagBuffer = '';
                         insideTag = false;
@@ -100,28 +118,57 @@ export class PipelineEngine {
 
             this.history.push({ role: 'assistant', content: assistantResponse });
 
-            // Verificar se na string capturada por completo existia algo para o Sistema:
-            const match = /<run_command>([\s\S]*?)<\/run_command>/i.exec(assistantResponse);
-            if (match) {
-                const command = match[1].trim();
+            // === TOOL: run_command ===
+            const cmdMatch = /<run_command>([\s\S]*?)<\/run_command>/i.exec(assistantResponse);
+            if (cmdMatch) {
+                const command = cmdMatch[1].trim();
                 let approved = config.autoApproveMode;
-
                 if (!approved) {
-                    const ans = await promptUser(`\n${COLORS.YELLOW}[SYSTEM] A IA solicitou rolar no shell: '${command}'. Permitir? Y/n: ${COLORS.RESET}`);
-                    if (ans.toLowerCase() !== 'n') {
-                        approved = true;
-                    }
+                    const ans = await promptUser(`\n${COLORS.YELLOW}[TOOL] Executar comando: '${command}'. Permitir? Y/n: ${COLORS.RESET}`);
+                    if (ans.toLowerCase() !== 'n') approved = true;
                 }
-
                 if (approved) {
-                    yield `\n${COLORS.YELLOW}[Executando no Sistema O.S...]\n${COLORS.RESET}`;
+                    yield `\n${COLORS.YELLOW}[Executando...]${COLORS.RESET}\n`;
                     const result = await executeShellCommand(command);
                     this.history.push({ role: 'system', content: `Resultado do comando '${command}':\n${result}` });
-                    keepRunning = true; // Auto re-engatilha
                 } else {
-                    this.history.push({ role: 'system', content: `O usuário RECUSOU a execução do comando '${command}'. Lide com a recusa.` });
-                    keepRunning = true; // Devolve pra IA saber que falhou e contornar
+                    this.history.push({ role: 'system', content: `Usuário RECUSOU execução de '${command}'.` });
                 }
+                keepRunning = true;
+            }
+
+            // === TOOL: read_file ===
+            const readMatch = /<read_file>([\s\S]*?)<\/read_file>/i.exec(assistantResponse);
+            if (readMatch) {
+                const filePath = readMatch[1].trim();
+                const cwd = process.cwd();
+                const content = readArtifact(filePath, cwd);
+                this.history.push({ role: 'system', content: `Conteúdo de '${filePath}':\n${content}` });
+                yield `\n${COLORS.CYAN}[Lido: ${filePath}]${COLORS.RESET}\n`;
+                keepRunning = true;
+            }
+
+            // === TOOL: write_file ===
+            const writeMatch = /<write_file\s+path="([^"]+)">(([\s\S]*?))<\/write_file>/i.exec(assistantResponse);
+            if (writeMatch) {
+                const filePath = writeMatch[1].trim();
+                const fileContent = writeMatch[2];
+                let approved = config.autoApproveMode;
+                if (!approved) {
+                    const preview = fileContent.length > 200 ? fileContent.substring(0, 200) + '...' : fileContent;
+                    yield `\n${COLORS.YELLOW}[TOOL] Gravar arquivo: '${filePath}'\nPreview: ${preview}${COLORS.RESET}\n`;
+                    const ans = await promptUser(`${COLORS.YELLOW}Permitir gravação? Y/n: ${COLORS.RESET}`);
+                    if (ans.toLowerCase() !== 'n') approved = true;
+                }
+                if (approved) {
+                    const cwd = process.cwd();
+                    const result = writeArtifact(filePath, fileContent, cwd);
+                    this.history.push({ role: 'system', content: result });
+                    yield `\n${COLORS.GREEN}[Gravado: ${filePath}]${COLORS.RESET}\n`;
+                } else {
+                    this.history.push({ role: 'system', content: `Usuário RECUSOU gravação de '${filePath}'.` });
+                }
+                keepRunning = true;
             }
         }
     }

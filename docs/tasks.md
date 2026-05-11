@@ -44,17 +44,17 @@
 - [x] Exibição de status no terminal ao carregar
 
 ## Fase 7 — Persistência de sessões
-- [ ] Salvar histórico de mensagens em pasta local
-- [ ] Retomar sessões anteriores
-- [ ] Compressão automática de contexto a ~200k tokens
+- [x] Salvar histórico de mensagens em pasta local
+- [x] Retomar sessões anteriores
+- [x] Compressão automática de contexto a ~200k tokens
 
 ## Fase 8 — Gestão de artefatos
-- [ ] Leitura de artefatos de `docs/`
-- [ ] Escrita/atualização de artefatos
-- [ ] Integração com contexto dos modelos
+- [x] Leitura de artefatos de `docs/`
+- [x] Escrita/atualização de artefatos
+- [x] Integração com contexto dos modelos
 
 ## Fase 9 — Polish e release
-- [ ] Testes e validação end-to-end
-- [ ] Documentação (README)
-- [ ] Primeira release no GitHub
-- [ ] Publicação no npm
+- [x] Testes e validação end-to-end
+- [x] Documentação (README)
+- [x] Primeira release no GitHub
+- [ ] Publicação no npm (manual pelo owner)

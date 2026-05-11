@@ -1,7 +1,7 @@
 {
   "name": "toug-cli",
   "version": "1.0.0",
-  "description": "",
+  "description": "Assistente de desenvolvimento AI local com pipeline forçada via Ollama/Docker",
   "main": "index.js",
   "directories": {
     "doc": "docs"
@@ -18,9 +18,17 @@
     "type": "git",
     "url": "git+https://github.com/T0ug/Toug-CLI.git"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": [
+    "cli",
+    "ai",
+    "ollama",
+    "pipeline",
+    "development",
+    "assistant",
+    "local-llm"
+  ],
+  "author": "T0ug",
+  "license": "MIT",
   "type": "commonjs",
   "bugs": {
     "url": "https://github.com/T0ug/Toug-CLI/issues"
@@ -30,5 +38,9 @@
     "@types/node": "^25.6.2",
     "ts-node": "^10.9.2",
     "typescript": "^6.0.3"
-  }
+  },
+  "files": [
+    "dist/",
+    "README.md"
+  ]
 }

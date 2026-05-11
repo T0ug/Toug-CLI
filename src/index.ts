@@ -2,6 +2,7 @@
 import { PipelineEngine } from './engine/pipelineEngine';
 import { OllamaClient } from './engine/ollamaClient';
 import { detectProjectState } from './engine/projectDetector';
+import { saveSession, loadLatestSession, compressHistory } from './data/sessionManager';
 import { promptUser, printHeader, printError, closeChat, COLORS } from './cli/chatInterface';
 
 async function main() {
@@ -35,22 +36,38 @@ async function main() {
 
     const engine = new PipelineEngine();
 
-    if (projectState.isExistingProject && projectState.hasProjectStatus) {
-        console.log(`\n${COLORS.GREEN}🔄 Projeto existente detectado. Entrando em modo Orchestrator.${COLORS.RESET}`);
-        engine.transition('ORCHESTRATING');
+    // === Restauração de Sessão ===
+    const previousSession = loadLatestSession(cwd);
+    let sessionRestored = false;
 
-        // Injetar contexto do project_status no histórico para warm-start
-        if (projectState.projectStatusContent) {
-            engine.injectContext(
-                `Estado atual do projeto (lido automaticamente de docs/project_status.md):\n${projectState.projectStatusContent}`
-            );
+    if (previousSession) {
+        const ans = await promptUser(`\n${COLORS.YELLOW}💾 Sessão anterior encontrada (${previousSession.savedAt}). Retomar? (Y/n): ${COLORS.RESET}`);
+        if (ans.toLowerCase() !== 'n') {
+            engine.setHistory(previousSession.history);
+            engine.setState(previousSession.state);
+            sessionRestored = true;
+            console.log(`${COLORS.GREEN}✅ Sessão restaurada com ${previousSession.history.length} mensagens.${COLORS.RESET}`);
         }
-    } else if (projectState.isExistingProject) {
-        console.log(`\n${COLORS.YELLOW}🔍 Projeto detectado sem documentação completa. Entrando em modo Project Research.${COLORS.RESET}`);
-        engine.transition('PROJECT_RESEARCH');
-    } else {
-        console.log(`\n${COLORS.MAGENTA}🌱 Nenhum projeto detectado. Entrando em modo Discovery para novo projeto.${COLORS.RESET}`);
-        engine.transition('DISCOVERY');
+    }
+
+    // === Estado Inicial (se não restaurou sessão) ===
+    if (!sessionRestored) {
+        if (projectState.isExistingProject && projectState.hasProjectStatus) {
+            console.log(`\n${COLORS.GREEN}🔄 Projeto existente detectado. Entrando em modo Orchestrator.${COLORS.RESET}`);
+            engine.transition('ORCHESTRATING');
+
+            if (projectState.projectStatusContent) {
+                engine.injectContext(
+                    `Estado atual do projeto (lido automaticamente de docs/project_status.md):\n${projectState.projectStatusContent}`
+                );
+            }
+        } else if (projectState.isExistingProject) {
+            console.log(`\n${COLORS.YELLOW}🔍 Projeto detectado sem documentação completa. Entrando em modo Project Research.${COLORS.RESET}`);
+            engine.transition('PROJECT_RESEARCH');
+        } else {
+            console.log(`\n${COLORS.MAGENTA}🌱 Nenhum projeto detectado. Entrando em modo Discovery para novo projeto.${COLORS.RESET}`);
+            engine.transition('DISCOVERY');
+        }
     }
 
     console.log(`\nDigite ${COLORS.YELLOW}'/exit'${COLORS.RESET} para sair.\n`);
@@ -73,10 +90,22 @@ async function main() {
         } catch (e: any) {
             printError("Falha na execução do Stream.", e.message);
         }
+
+        // === Compressão automática de contexto ===
+        const currentHistory = engine.getHistory();
+        if (currentHistory.length > 50) {
+            const compressed = compressHistory(currentHistory, 10);
+            engine.setHistory(compressed);
+            console.log(`${COLORS.YELLOW}[SYSTEM] Contexto comprimido: ${currentHistory.length} → ${compressed.length} mensagens.${COLORS.RESET}\n`);
+        }
     }
 
+    // === Auto-save ao sair ===
+    const savedPath = saveSession(engine.getHistory(), engine.getState(), cwd);
+    console.log(`\n${COLORS.GREEN}💾 Sessão salva automaticamente.${COLORS.RESET}`);
+
     closeChat();
-    console.log(`\n${COLORS.MAGENTA}Sessão Toug encerrada.${COLORS.RESET}`);
+    console.log(`${COLORS.MAGENTA}Sessão Toug encerrada.${COLORS.RESET}`);
 }
 
 main().catch(e => {

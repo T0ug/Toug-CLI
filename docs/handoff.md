@@ -1,23 +1,49 @@
 # Handoff
 
 ## Task
-- ID: 007
-- Nome: Fase 6 — Inicialização Inteligente e Detecção de Projeto
+- ID: 010
+- Nome: Fase 9 — Polish e Release
 - Agente responsável: Executor
 
 ---
 
 ## Objetivo da Task
-Adicionar ao Toug CLI a capacidade de ler o filesystem (cwd) ao iniciar e determinar automaticamente em qual State da pipeline o software deve iniciar, exibindo para o desenvolvedor um resumo visual do que foi encontrado localmente sobre o projeto.
+Preparar o Toug CLI para publicação com documentação profissional, metadados de pacote, e configuração de ignore.
 
 ---
 
-## Escopo a Executar
-- Criar `src/engine/projectDetector.ts` com função pura que faz `existsSync` em artefatos-chave.
-- Ajustar o `src/index.ts` para chamar o detector antes do REPL, decidindo automaticamente `DISCOVERY` vs `ORCHESTRATING`.
-- Se existir `docs/project_status.md`, ler seu conteúdo e injetar como mensagem `system` no `history` da Engine para warm-start do contexto.
+## Escopo executado
+- Criado `README.md` completo com features, requisitos, instalação, configuração, arquitetura, comandos e licença.
+- Criado `.gitignore` cobrindo `node_modules/`, `dist/`, `.toug-cli/`, `*.log`.
+- Atualizado `package.json` com `description`, `keywords`, `author: T0ug`, `license: MIT`, e campo `files` limitando publicação ao `dist/` e `README.md`.
 
 ---
 
-## Regra Crítica
-A inicialização deve ser eficiente. Leitura síncrona durante o boot é aceitável e preferível para simplicidade. A decisão de estado deve ser determinística e previsível.
+## Artefatos afetados
+- README.md
+- .gitignore
+- package.json
+
+---
+
+## Evidência da entrega
+- Compilação final limpa `npm run build` (Exit 0).
+- Todos os metadados de publicação preenchidos.
+
+---
+
+## Validação realizada
+- Build TS clean confirmado.
+- README renderiza corretamente com tabelas, blocos de código e emojis.
+
+---
+
+## Próxima ação sugerida
+- Reviewer valida e o projeto é declarado como MVP CONCLUÍDO.
+
+---
+
+## Status
+- [x] Completo
+- [ ] Parcial
+- [ ] Bloqueado
