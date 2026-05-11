@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.saveConfig = exports.loadConfig = void 0;
+exports.saveConfig = exports.loadConfig = exports.isFirstRun = exports.getConfigPath = void 0;
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 const os_1 = __importDefault(require("os"));
@@ -27,8 +27,13 @@ const getConfigPath = () => {
     }
     return path_1.default.join(configDir, 'toug.config.json');
 };
+exports.getConfigPath = getConfigPath;
+const isFirstRun = () => {
+    return !fs_1.default.existsSync((0, exports.getConfigPath)());
+};
+exports.isFirstRun = isFirstRun;
 const loadConfig = () => {
-    const configPath = getConfigPath();
+    const configPath = (0, exports.getConfigPath)();
     if (!fs_1.default.existsSync(configPath)) {
         (0, exports.saveConfig)(DEFAULT_CONFIG);
         return DEFAULT_CONFIG;
@@ -45,7 +50,7 @@ const loadConfig = () => {
 };
 exports.loadConfig = loadConfig;
 const saveConfig = (config) => {
-    const configPath = getConfigPath();
+    const configPath = (0, exports.getConfigPath)();
     fs_1.default.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8');
 };
 exports.saveConfig = saveConfig;

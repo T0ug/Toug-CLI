@@ -28,13 +28,17 @@ const DEFAULT_CONFIG: TougConfig = {
     autoApproveMode: false
 };
 
-const getConfigPath = (): string => {
+export const getConfigPath = (): string => {
     const homeDir = os.homedir();
     const configDir = path.join(homeDir, '.toug-cli');
     if (!fs.existsSync(configDir)) {
         fs.mkdirSync(configDir, { recursive: true });
     }
     return path.join(configDir, 'toug.config.json');
+};
+
+export const isFirstRun = (): boolean => {
+    return !fs.existsSync(getConfigPath());
 };
 
 export const loadConfig = (): TougConfig => {

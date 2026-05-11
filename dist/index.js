@@ -4,8 +4,53 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const pipelineEngine_1 = require("./engine/pipelineEngine");
 const ollamaClient_1 = require("./engine/ollamaClient");
 const projectDetector_1 = require("./engine/projectDetector");
+const configManager_1 = require("./data/configManager");
 const sessionManager_1 = require("./data/sessionManager");
 const chatInterface_1 = require("./cli/chatInterface");
+async function configWizard() {
+    console.log(`\n${chatInterface_1.COLORS.CYAN}⚙️  Configuração Inicial do Toug CLI${chatInterface_1.COLORS.RESET}\n`);
+    const config = (0, configManager_1.loadConfig)();
+    console.log(`${chatInterface_1.COLORS.YELLOW}Endpoint Ollama atual: ${chatInterface_1.COLORS.RESET}${config.ollamaEndpoint}`);
+    console.log(`${chatInterface_1.COLORS.YELLOW}Arquivo de config:     ${chatInterface_1.COLORS.RESET}${(0, configManager_1.getConfigPath)()}\n`);
+    const ans = await (0, chatInterface_1.promptUser)(`${chatInterface_1.COLORS.YELLOW}O endpoint está correto? (Y/n): ${chatInterface_1.COLORS.RESET}`);
+    if (ans.toLowerCase() === 'n') {
+        const newEndpoint = await (0, chatInterface_1.promptUser)(`${chatInterface_1.COLORS.CYAN}Digite o novo endpoint (ex: http://192.168.1.100:11434): ${chatInterface_1.COLORS.RESET}`);
+        if (newEndpoint.trim()) {
+            config.ollamaEndpoint = newEndpoint.trim();
+            (0, configManager_1.saveConfig)(config);
+            console.log(`${chatInterface_1.COLORS.GREEN}✅ Endpoint atualizado para: ${config.ollamaEndpoint}${chatInterface_1.COLORS.RESET}\n`);
+        }
+    }
+    else {
+        console.log(`${chatInterface_1.COLORS.GREEN}✅ Configuração mantida.${chatInterface_1.COLORS.RESET}\n`);
+    }
+}
+async function editConfig() {
+    const config = (0, configManager_1.loadConfig)();
+    console.log(`\n${chatInterface_1.COLORS.CYAN}⚙️  Configuração Atual${chatInterface_1.COLORS.RESET}`);
+    console.log(`${chatInterface_1.COLORS.YELLOW}  Endpoint:       ${chatInterface_1.COLORS.RESET}${config.ollamaEndpoint}`);
+    console.log(`${chatInterface_1.COLORS.YELLOW}  Auto-approve:   ${chatInterface_1.COLORS.RESET}${config.autoApproveMode}`);
+    console.log(`${chatInterface_1.COLORS.YELLOW}  Arquivo:        ${chatInterface_1.COLORS.RESET}${(0, configManager_1.getConfigPath)()}`);
+    console.log(`${chatInterface_1.COLORS.YELLOW}  Modelos:${chatInterface_1.COLORS.RESET}`);
+    for (const [role, model] of Object.entries(config.models)) {
+        console.log(`    ${role}: ${model}`);
+    }
+    console.log('');
+    const choice = await (0, chatInterface_1.promptUser)(`${chatInterface_1.COLORS.YELLOW}O que deseja alterar? (1=Endpoint, 2=Auto-approve, Enter=Voltar): ${chatInterface_1.COLORS.RESET}`);
+    if (choice === '1') {
+        const newEndpoint = await (0, chatInterface_1.promptUser)(`${chatInterface_1.COLORS.CYAN}Novo endpoint: ${chatInterface_1.COLORS.RESET}`);
+        if (newEndpoint.trim()) {
+            config.ollamaEndpoint = newEndpoint.trim();
+            (0, configManager_1.saveConfig)(config);
+            console.log(`${chatInterface_1.COLORS.GREEN}✅ Endpoint atualizado para: ${config.ollamaEndpoint}${chatInterface_1.COLORS.RESET}\n`);
+        }
+    }
+    else if (choice === '2') {
+        config.autoApproveMode = !config.autoApproveMode;
+        (0, configManager_1.saveConfig)(config);
+        console.log(`${chatInterface_1.COLORS.GREEN}✅ Auto-approve agora: ${config.autoApproveMode}${chatInterface_1.COLORS.RESET}\n`);
+    }
+}
 async function main() {
     const logo = `
 \x1b[35m████████╗ ██████╗ ██╗   ██╗ ██████╗ \x1b[0m
@@ -16,6 +61,10 @@ async function main() {
 \x1b[35m   ╚═╝░░░░╚═════╝░░╚═════╝░░╚═════╝░\x1b[0m
 `;
     console.log(logo);
+    // === Wizard de primeira execução ===
+    if ((0, configManager_1.isFirstRun)()) {
+        await configWizard();
+    }
     // === Health Check ===
     const client = new ollamaClient_1.OllamaClient();
     const healthy = await client.isHealthy();
@@ -62,7 +111,7 @@ async function main() {
             engine.transition('DISCOVERY');
         }
     }
-    console.log(`\nDigite ${chatInterface_1.COLORS.YELLOW}'/exit'${chatInterface_1.COLORS.RESET} para sair.\n`);
+    console.log(`\nComandos: ${chatInterface_1.COLORS.YELLOW}/exit${chatInterface_1.COLORS.RESET} (sair) | ${chatInterface_1.COLORS.YELLOW}/config${chatInterface_1.COLORS.RESET} (editar configuração)\n`);
     // === REPL Loop ===
     while (true) {
         const input = await (0, chatInterface_1.promptUser)('Você: ');
@@ -70,6 +119,10 @@ async function main() {
             continue;
         if (input.trim() === '/exit')
             break;
+        if (input.trim() === '/config') {
+            await editConfig();
+            continue;
+        }
         const active = engine.getActiveConfig();
         (0, chatInterface_1.printHeader)(active.role, active.model);
         try {
