@@ -28,3 +28,4 @@
 | 016 | 2026-05-11 | Self-healing em falhas de STDERR de subprocessos | Não crashar CLI; devolver log de erro pra IA iterar na correção sem intervir | Architect |
 | 017 | 2026-05-11 | Context Auto-Compression | Compactar o histórico da DB local aos 200k chars, sem impactar o context `docs/` lido em runtime | Architect |
 | 018 | 2026-05-11 | Controle do Docker pelo projeto | Usuário exigiu que a configuração do Ollama Server no Docker seja versionada junto ao projeto (correção de Assunção) | Orchestrator |
+| 019 | 2026-05-11 | Downsizing dos modelos padrão para escala 7B/8B e estrangulamento de RAM no Docker | Evitar esgotamento de memória no servidor e travamentos na troca de agentes (`OLLAMA_KEEP_ALIVE=1m` e `OLLAMA_MAX_LOADED_MODELS=1`) | Discovery |

@@ -58,3 +58,9 @@
 - [x] Documentação (README)
 - [x] Primeira release no GitHub
 - [ ] Publicação no npm (manual pelo owner)
+
+## Fase 10 — Otimização de Memória e Modelos
+- [x] Atualizar default config para modelos enxutos (escala 4B a 8B).
+- [x] Limitar Docker para suportar apenas 1 modelo na RAM simultaneamente.
+- [x] Configurar `OLLAMA_KEEP_ALIVE` para 1 minuto a fim de poupar memória do servidor.
+- [x] Atualizar scripts de `pull_models` para refletir as versões menores.
