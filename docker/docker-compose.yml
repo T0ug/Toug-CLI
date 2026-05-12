@@ -6,6 +6,9 @@ services:
     container_name: toug_ollama
     ports:
       - "11434:11434"
+    environment:
+      - OLLAMA_MAX_LOADED_MODELS=1
+      - OLLAMA_KEEP_ALIVE=1m
     volumes:
       - ollama_data:/root/.ollama
     restart: unless-stopped

@@ -10,12 +10,12 @@ const os_1 = __importDefault(require("os"));
 const DEFAULT_CONFIG = {
     ollamaEndpoint: 'http://localhost:11434',
     models: {
-        discovery: 'gemma3:27b',
-        architect: 'deepseek-r1-distill-qwen-32b',
-        executor: 'qwen3-coder:latest',
-        reviewer: 'deepseek-r1-distill-qwen-32b',
-        orchestrator: 'qwen3:30b-instruct',
-        project_research: 'qwen3-coder:latest'
+        discovery: 'gemma3:4b',
+        architect: 'deepseek-r1:8b',
+        executor: 'qwen2.5-coder:7b',
+        reviewer: 'deepseek-r1:8b',
+        orchestrator: 'qwen3:8b',
+        project_research: 'qwen2.5-coder:7b'
     },
     autoApproveMode: false
 };
