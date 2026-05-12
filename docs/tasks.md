@@ -64,3 +64,8 @@
 - [x] Limitar Docker para suportar apenas 1 modelo na RAM simultaneamente.
 - [x] Configurar `OLLAMA_KEEP_ALIVE` para 1 minuto a fim de poupar memória do servidor.
 - [x] Atualizar scripts de `pull_models` para refletir as versões menores.
+
+## Fase 11 — UX de Ferramentas e Reforço de Pipeline
+- [x] Implementar tag `<transition_state>` no `pipelineEngine.ts` para forçar a State Machine a girar e passar o bastão entre agentes.
+- [x] Ocultar tags XML do usuário durante o streaming, pedindo permissão de ferramenta imediatamente ao fechar a tag.
+- [x] Modificar `toolRunner.ts` para usar `spawn` em background para comandos de servidor (ex: `npm run dev`), exibindo os logs no chat, mas destravando a IA.

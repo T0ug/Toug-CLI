@@ -76,18 +76,28 @@ class PipelineEngine {
             for await (const chunk of stream) {
                 assistantResponse += chunk;
                 if (chunk.includes('<') || insideTag) {
-                    insideTag = true;
-                    tagBuffer += chunk;
-                    const hasClosingTag = tagBuffer.includes('</run_command>') ||
-                        tagBuffer.includes('</read_file>') ||
-                        tagBuffer.includes('</write_file>');
-                    const hasOpeningTag = tagBuffer.includes('<run_command>') ||
-                        tagBuffer.includes('<read_file>') ||
-                        tagBuffer.includes('<write_file');
-                    if (hasClosingTag) {
-                        insideTag = false;
+                    if (!insideTag) {
+                        insideTag = true;
+                        const splitIdx = chunk.indexOf('<');
+                        if (splitIdx > 0) {
+                            yield chunk.substring(0, splitIdx);
+                            tagBuffer += chunk.substring(splitIdx);
+                        }
+                        else {
+                            tagBuffer += chunk;
+                        }
                     }
-                    else if (tagBuffer.length > 40 && !hasOpeningTag) {
+                    else {
+                        tagBuffer += chunk;
+                    }
+                    const isOpening = /<(run_command|read_file|write_file|transition_state)/.test(tagBuffer);
+                    const isClosing = /<\/(run_command|read_file|write_file|transition_state)>/.test(tagBuffer);
+                    if (isClosing) {
+                        insideTag = false;
+                        yield `\n${chatInterface_1.COLORS.MAGENTA}[Ferramenta detectada. Interceptando e executando...]${chatInterface_1.COLORS.RESET}\n`;
+                        break; // Stop stream and process tool immediately
+                    }
+                    else if (tagBuffer.length > 35 && !isOpening) {
                         yield tagBuffer;
                         tagBuffer = '';
                         insideTag = false;
@@ -150,6 +160,15 @@ class PipelineEngine {
                 else {
                     this.history.push({ role: 'system', content: `Usuário RECUSOU gravação de '${filePath}'.` });
                 }
+                keepRunning = true;
+            }
+            // === TOOL: transition_state ===
+            const transMatch = /<transition_state>([\s\S]*?)<\/transition_state>/i.exec(assistantResponse);
+            if (transMatch) {
+                const newState = transMatch[1].trim().toUpperCase();
+                this.transition(newState);
+                this.history.push({ role: 'system', content: `[SYSTEM] Transição efetuada com sucesso para o estado: ${newState}. O novo agente agora assume o controle da conversa.` });
+                yield `\n${chatInterface_1.COLORS.CYAN}[Estado alterado para: ${newState}]${chatInterface_1.COLORS.RESET}\n`;
                 keepRunning = true;
             }
         }

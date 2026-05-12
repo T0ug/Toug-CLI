@@ -94,19 +94,27 @@ export class PipelineEngine {
                 assistantResponse += chunk;
 
                 if (chunk.includes('<') || insideTag) {
-                    insideTag = true;
-                    tagBuffer += chunk;
+                    if (!insideTag) {
+                        insideTag = true;
+                        const splitIdx = chunk.indexOf('<');
+                        if (splitIdx > 0) {
+                            yield chunk.substring(0, splitIdx);
+                            tagBuffer += chunk.substring(splitIdx);
+                        } else {
+                            tagBuffer += chunk;
+                        }
+                    } else {
+                        tagBuffer += chunk;
+                    }
 
-                    const hasClosingTag = tagBuffer.includes('</run_command>') ||
-                        tagBuffer.includes('</read_file>') ||
-                        tagBuffer.includes('</write_file>');
-                    const hasOpeningTag = tagBuffer.includes('<run_command>') ||
-                        tagBuffer.includes('<read_file>') ||
-                        tagBuffer.includes('<write_file');
+                    const isOpening = /<(run_command|read_file|write_file|transition_state)/.test(tagBuffer);
+                    const isClosing = /<\/(run_command|read_file|write_file|transition_state)>/.test(tagBuffer);
 
-                    if (hasClosingTag) {
+                    if (isClosing) {
                         insideTag = false;
-                    } else if (tagBuffer.length > 40 && !hasOpeningTag) {
+                        yield `\n${COLORS.MAGENTA}[Ferramenta detectada. Interceptando e executando...]${COLORS.RESET}\n`;
+                        break; // Stop stream and process tool immediately
+                    } else if (tagBuffer.length > 35 && !isOpening) {
                         yield tagBuffer;
                         tagBuffer = '';
                         insideTag = false;
@@ -168,6 +176,16 @@ export class PipelineEngine {
                 } else {
                     this.history.push({ role: 'system', content: `Usuário RECUSOU gravação de '${filePath}'.` });
                 }
+                keepRunning = true;
+            }
+
+            // === TOOL: transition_state ===
+            const transMatch = /<transition_state>([\s\S]*?)<\/transition_state>/i.exec(assistantResponse);
+            if (transMatch) {
+                const newState = transMatch[1].trim().toUpperCase() as PipelineState;
+                this.transition(newState);
+                this.history.push({ role: 'system', content: `[SYSTEM] Transição efetuada com sucesso para o estado: ${newState}. O novo agente agora assume o controle da conversa.` });
+                yield `\n${COLORS.CYAN}[Estado alterado para: ${newState}]${COLORS.RESET}\n`;
                 keepRunning = true;
             }
         }
