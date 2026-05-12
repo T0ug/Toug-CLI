@@ -1,31 +1,32 @@
-# Decision Log — Toug CLI
+# Decision Log - Toug CLI
 
-## Formato
-
-| # | Data | Decisão | Justificativa | Agent |
+| # | Data | Decisao | Justificativa | Agent |
 |---|------|---------|---------------|-------|
-
----
-
-## Decisões
-
-| # | Data | Decisão | Justificativa | Agent |
-|---|------|---------|---------------|-------|
-| 001 | 2026-05-11 | Stack: Node.js / TypeScript | Escala futura para IDE com interface gráfica; bom para CLI no MVP | Discovery |
-| 002 | 2026-05-11 | API: Ollama | Runtime padrão para modelos locais, API compatível com OpenAI | Discovery |
-| 003 | 2026-05-11 | Pipeline fixa e embutida no CLI | Garantir enforcement total — modelos não podem desviar do fluxo | Discovery |
+| 001 | 2026-05-11 | Stack: Node.js / TypeScript | Escala futura para IDE com interface grafica; bom para CLI no MVP | Discovery |
+| 002 | 2026-05-11 | API inicial: Ollama | Runtime padrao para modelos locais | Discovery |
+| 003 | 2026-05-11 | Pipeline fixa e embutida no CLI | Garantir enforcement total | Discovery |
 | 004 | 2026-05-11 | Servidor dedicado na rede local | Separar carga dos modelos do PC de desenvolvimento | Discovery |
-| 005 | 2026-05-11 | Streaming de respostas | UX superior — feedback imediato, sem sensação de travamento | Discovery |
-| 006 | 2026-05-11 | Aprovação de comandos + auto-approve configurável | Segurança por padrão, flexibilidade quando desejado | Discovery |
-| 007 | 2026-05-11 | Persistência de sessões em pasta local | Continuidade entre sessões sem depender só de docs/ | Discovery |
-| 008 | 2026-05-11 | Compressão de contexto a ~200k tokens | Modelos locais têm context window limitado; docs/ garante continuidade | Discovery |
-| 009 | 2026-05-11 | Distribuição via npm global | Padrão para CLIs TypeScript; facilita instalação e versionamento | Discovery |
-| 010 | 2026-05-11 | Sem autenticação no Ollama | MVP em rede local confiável; simplifica implementação | Discovery |
-| 012 | 2026-05-11 | Labels agent+modelo em cada mensagem | Transparência sobre qual IA está respondendo e com qual modelo | Discovery |
-| 013 | 2026-05-11 | Arquitetura de Máquina de Estados Finita | Melhor enforcement da pipeline vs. Event-driven, mais fácil rastrear falhas do modelo | Architect |
-| 014 | 2026-05-11 | Persistência de sessões no AppData (SQLite/JSONL) | Isolar histórico sujo de CWD do usuário, mantendo apenas `docs/` visível e fresco | Architect |
-| 015 | 2026-05-11 | HTTP nativo via fetch/undici com SSE parsing | Evitar SDKs opacos como openai/sdk para ter fail-safe customizado no streaming | Architect |
-| 016 | 2026-05-11 | Self-healing em falhas de STDERR de subprocessos | Não crashar CLI; devolver log de erro pra IA iterar na correção sem intervir | Architect |
-| 017 | 2026-05-11 | Context Auto-Compression | Compactar o histórico da DB local aos 200k chars, sem impactar o context `docs/` lido em runtime | Architect |
-| 018 | 2026-05-11 | Controle do Docker pelo projeto | Usuário exigiu que a configuração do Ollama Server no Docker seja versionada junto ao projeto (correção de Assunção) | Orchestrator |
-| 019 | 2026-05-11 | Downsizing dos modelos padrão para escala 7B/8B e estrangulamento de RAM no Docker | Evitar esgotamento de memória no servidor e travamentos na troca de agentes (`OLLAMA_KEEP_ALIVE=1m` e `OLLAMA_MAX_LOADED_MODELS=1`) | Discovery |
+| 005 | 2026-05-11 | Streaming de respostas | Feedback imediato no terminal | Discovery |
+| 006 | 2026-05-11 | Aprovacao de comandos + auto-approve configuravel | Seguranca por padrao, flexibilidade quando desejado | Discovery |
+| 007 | 2026-05-11 | Persistencia de sessoes em pasta local | Continuidade entre sessoes sem depender so de docs/ | Discovery |
+| 008 | 2026-05-11 | Compressao de contexto | Manter sessoes longas operaveis | Architect |
+| 009 | 2026-05-11 | Distribuicao via npm global | Padrao para CLIs TypeScript | Discovery |
+| 010 | 2026-05-11 | Sem autenticacao no Ollama | MVP em rede local confiavel | Discovery |
+| 011 | 2026-05-11 | Labels agent + modelo em cada mensagem | Transparencia sobre qual IA esta respondendo | Discovery |
+| 012 | 2026-05-11 | Arquitetura de State Machine | Melhor enforcement da pipeline | Architect |
+| 013 | 2026-05-11 | Controle do Docker pelo projeto | Configuracao do Ollama Server versionada junto ao projeto | Orchestrator |
+| 014 | 2026-05-11 | Downsizing dos modelos locais | Evitar esgotamento de memoria no servidor | Discovery |
+| 015 | 2026-05-12 | Understanding Lock aprovado para suporte inicial a Gemini | Usuario confirmou provedores globais Ollama/Gemini, Gemini via SDK oficial, streaming, function calling, fallback por API key e configuracao global | Discovery |
+| 016 | 2026-05-12 | Modelos por agente deixam de ser configuracao do usuario | A verdade dos modelos por agente deve ficar fechada no codigo/regras versionadas do CLI | Discovery |
+| 017 | 2026-05-12 | Mapeamento Gemini aprovado por custo-beneficio | `orchestrator`, `discovery` e `project_research` usam `gemini-2.5-flash`; `architect`, `executor` e `reviewer` usam `gemini-2.5-pro` | Discovery |
+| 018 | 2026-05-12 | Configuracao especifica por projeto descartada | Nao havera configuracoes por projeto; apenas configuracao global em `~/.toug-cli` | Discovery |
+| 019 | 2026-05-12 | Confirmacao obrigatoria antes de gerar artefatos | Novos projetos dependem de Discovery + `clarify-intent`; projetos existentes sem docs dependem de Project Research + `research-existing-project`; ambos exigem resumo confirmado antes de criar `docs/` | Discovery |
+| 020 | 2026-05-12 | Arquitetura escolhida: Provider Layer + Tool Dispatcher + Safety Guard | Mantem o `PipelineEngine` como state machine, mas separa providers, tools, seguranca, persistencia e erros para evitar acoplamento excessivo | Architect |
+| 021 | 2026-05-12 | Transicao de agentes e privada do PipelineController | O modelo nao deve decidir quando sua fase acabou nem escolher o proximo agente; o CLI valida criterios, artefatos e confirmacoes | Architect |
+| 022 | 2026-05-12 | `transition_state` removido das ferramentas publicas do modelo | Gemini deve receber apenas function calls para tools operacionais; transicao de pipeline fica fora do alcance do LLM | Architect |
+| 023 | 2026-05-12 | Handoff passa a ser artefato validado por template | Cada fase principal deve produzir handoff valido; transicao e bloqueada se campos minimos ou artefatos obrigatorios estiverem ausentes | Architect |
+| 024 | 2026-05-12 | Config v2 separa preferencias de regras versionadas | Config global guarda provider, endpoint, API keys e auto-approve; modelos por agente ficam no `modelRegistry` do CLI | Architect |
+| 025 | 2026-05-12 | Providers emitem eventos normalizados | Ollama/XML e Gemini/Function Calling convergem para `ProviderEvent` e `ToolCall`, reduzindo diferencas no `PipelineEngine` | Architect |
+| 026 | 2026-05-12 | Task 011 formalizada como primeira execucao da Fase 12 | Orchestrator dividiu a implementacao em uma fundacao executavel: Provider abstraction, Config v2 e Model Registry antes de integrar Gemini real | Orchestrator |
+| 027 | 2026-05-12 | Inconsistencia documental corrigida antes da execucao | Reviewer bloqueou o avanco por divergencias entre scope, implementation_plan e handoff; Orchestrator coordenou correcao minima para revalidacao | Orchestrator |
+| 028 | 2026-05-12 | Revalidacao documental aprovada para Task 011 | Reviewer confirmou que scope, implementation_plan, handoff, project_status, tasks e decision_log estao alinhados para liberar Executor mediante confirmacao do usuario | Reviewer |

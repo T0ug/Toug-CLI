@@ -1,4 +1,4 @@
-import { loadConfig } from '../data/configManager';
+import { getOllamaEndpoint } from '../data/configManager';
 
 export interface Message {
     role: 'system' | 'user' | 'assistant';
@@ -9,8 +9,7 @@ export class OllamaClient {
     private endpoint: string;
 
     constructor() {
-        const config = loadConfig();
-        this.endpoint = config.ollamaEndpoint.replace(/\/$/, ""); // Remove trailing slash
+        this.endpoint = getOllamaEndpoint().replace(/\/$/, ""); // Remove trailing slash
     }
 
     /**
@@ -46,12 +45,13 @@ export class OllamaClient {
      * Creates an async generator to stream completions from the Ollama chat endpoint.
      * Yields the message content chunks recursively.
      */
-    public async *streamChat(model: string, messages: Message[]): AsyncGenerator<string, void, unknown> {
+    public async *streamChat(model: string, messages: Message[], abortSignal?: AbortSignal): AsyncGenerator<string, void, unknown> {
         const response = await fetch(`${this.endpoint}/api/chat`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
+            signal: abortSignal,
             body: JSON.stringify({
                 model,
                 messages,

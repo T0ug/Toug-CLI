@@ -18,8 +18,9 @@ export const promptUser = async (text: string): Promise<string> => {
     return await rl.question(`${COLORS.CYAN}${text}${COLORS.RESET}`);
 };
 
-export const printHeader = (agent: string, model: string) => {
-    process.stdout.write(`\n${COLORS.GREEN}>> [${agent.toUpperCase()} @ ${model}]${COLORS.RESET}\n`);
+export const printHeader = (agent: string, model: string, provider?: string) => {
+    const providerLabel = provider ? `${provider.toUpperCase()} / ` : '';
+    process.stdout.write(`\n${COLORS.GREEN}>> [${providerLabel}${agent.toUpperCase()} @ ${model}]${COLORS.RESET}\n`);
 };
 
 export const printError = (msg: string, err: any) => {

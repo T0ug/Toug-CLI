@@ -1,18 +1,21 @@
 import { PipelineState, AgentRole } from '../agents/types';
 import { loadAgent } from '../agents/agentLoader';
-import { OllamaClient, Message } from './ollamaClient';
+import { Message } from './ollamaClient';
 import { loadConfig } from '../data/configManager';
 import { promptUser, COLORS } from '../cli/chatInterface';
 import { executeShellCommand } from './toolRunner';
 import { readArtifact, writeArtifact } from './artifactManager';
+import { getModelForProviderRole } from '../agents/modelRegistry';
+import { createProvider } from './providerFactory';
+import { AIProvider, ProviderMessage } from '../providers/types';
 
 export class PipelineEngine {
     private state: PipelineState = 'IDLE';
-    private ollamaClient: OllamaClient;
+    private provider: AIProvider;
     private history: Message[] = [];
 
     constructor() {
-        this.ollamaClient = new OllamaClient();
+        this.provider = createProvider();
     }
 
     public getState(): PipelineState {
@@ -38,7 +41,7 @@ export class PipelineEngine {
 
     private getModelForRole(role: AgentRole): string {
         const config = loadConfig();
-        return config.models[role] || config.models.orchestrator;
+        return getModelForProviderRole(config.lastProvider, role);
     }
 
     public injectContext(content: string): void {
@@ -59,8 +62,9 @@ export class PipelineEngine {
 
     public getActiveConfig() {
         const role = this.getRoleForState(this.state);
+        const provider = loadConfig().lastProvider;
         const model = this.getModelForRole(role);
-        return { role, model };
+        return { provider, role, model };
     }
 
     public async *processInput(userInput: string): AsyncGenerator<string, void, unknown> {
@@ -78,19 +82,43 @@ export class PipelineEngine {
             const agent = loadAgent(role);
             const model = this.getModelForRole(role);
             const config = loadConfig();
+            this.provider = createProvider(config.lastProvider);
 
-            const messages: Message[] = [
+            const messages: ProviderMessage[] = [
                 { role: 'system', content: agent.systemPrompt },
                 ...this.history
             ];
 
-            const stream = this.ollamaClient.streamChat(model, messages);
+            const stream = this.provider.stream({
+                provider: config.lastProvider,
+                model,
+                messages,
+                tools: [],
+                metadata: {
+                    cwd: process.cwd(),
+                    state: this.state,
+                    agentRole: role
+                }
+            });
             let assistantResponse = '';
 
             let tagBuffer = '';
             let insideTag = false;
 
-            for await (const chunk of stream) {
+            for await (const event of stream) {
+                if (event.type === 'error') {
+                    throw new Error(event.error.message);
+                }
+
+                if (event.type === 'done') {
+                    break;
+                }
+
+                if (event.type !== 'text_delta') {
+                    continue;
+                }
+
+                const chunk = event.text;
                 assistantResponse += chunk;
 
                 if (chunk.includes('<') || insideTag) {

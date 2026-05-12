@@ -1,71 +1,42 @@
-# Tasks — Toug CLI (Macro)
+# Tasks - Toug CLI
 
-> Visão macro — detalhamento será feito pelo Architect e Executor.
+## Fases concluidas
 
-## Fase 1 — Infraestrutura base
-- [x] Inicializar projeto Node.js/TypeScript
-- [x] Configurar build, lint, e estrutura de pastas
-- [x] Criar repositório GitHub "Toug CLI"
-- [x] Configurar npm package para instalação global
+- [x] Fase 1 - Infraestrutura base
+- [x] Fase 2 - Infraestrutura Ollama/Docker
+- [x] Fase 3 - Pipeline engine
+- [x] Fase 4 - Interface de chat
+- [x] Fase 5 - Acesso a comandos e arquivos
+- [x] Fase 6 - Inicializacao inteligente
+- [x] Fase 7 - Persistencia de sessoes
+- [x] Fase 8 - Gestao de artefatos
+- [x] Fase 9 - Polish e release MVP
+- [x] Fase 10 - Otimizacao de memoria e modelos locais
+- [x] Fase 11 - UX de ferramentas e reforco de pipeline
 
-## Fase 2 — Infraestrutura Ollama (Docker + Client)
-- [x] Configurar `docker-compose.yml` para o Ollama
-- [x] Criar script de setup para baixar os modelos listados
-- [x] Implementar client Ollama API em Node.js (chat, streaming)
-- [x] Sistema de configuração (`toug.config.json`)
-- [x] Setup da primeira inicialização
-- [x] Health check do servidor Ollama
-- [x] Sistema de fallback de modelos com notificação
+## Fase 12 - Provedores Globais e Gemini
 
-## Fase 3 — Pipeline engine
-- [x] Embutir definições de agents no CLI (baseado em `.agents/`)
-- [x] Embutir skills, workflows e rules (Note: Partially done via agents, workflows/skills are next or bound to Orchestrator context logic)
-- [x] Implementar mapeamento agent → modelo
-- [x] Implementar Orchestrator como roteador de mensagens
+- [ ] Introduzir selecao global de provedor no start do CLI: Ollama/local ou Gemini.
+- [ ] Permitir alterar provedor e API keys Gemini via `/config`.
+- [ ] Migrar mapeamento agent -> modelo para regras internas versionadas do CLI.
+- [ ] Adicionar integracao Gemini com SDK oficial `@google/genai`.
+- [ ] Implementar streaming Gemini.
+- [ ] Implementar Function Calling Gemini para `run_command`, `read_file` e `write_file`.
+- [ ] Manter XML como compatibilidade para Ollama/local.
+- [ ] Implementar fallback entre multiplas API keys Gemini.
+- [ ] Implementar matriz de tratamento de erros Gemini aprovada.
+- [ ] Gerar log `.txt` para erros fatais com dialogo/Explorer no Windows.
+- [ ] Salvar sessao a cada mensagem.
+- [ ] Implementar `/stop` e `Ctrl+C` para interromper geracao atual sem encerrar CLI.
+- [ ] Aplicar limites de seguranca para comandos e arquivos fora da pasta do projeto.
+- [ ] Embutir agents, skills, regras, workflows, templates e artefatos-base no CLI.
+- [ ] Garantir que novos projetos/projetos existentes sem docs so criem artefatos apos resumo de entendimento confirmado.
 
-## Fase 4 — Interface de chat
-- [x] Input do usuário no terminal
-- [x] Output com streaming
-- [x] Labels de agent + modelo em cada mensagem
-- [x] Formatação de código e markdown no terminal (Via stream cru nativo no MVP console)
+### Tasks formais
 
-## Fase 5 — Acesso a comandos e arquivos
-- [x] Sistema de execução de comandos shell
-- [x] Sistema de leitura/escrita de arquivos
-- [x] Aprovação do usuário antes de comandos
-- [x] Modo auto-approve (opcional) vs interactive
-- [x] Rastreio de outputs do terminal
-- [x] Bloqueio de comandos admin
+- [x] Task 011 - Fase 12.1 - Base de Providers, Config v2 e Model Registry (`docs/task_011.md`)
 
-## Fase 6 — Inicialização inteligente
-- [x] Detecção de estado do projeto (docs/ existe? código existe?)
-- [x] Fluxo Project Research para projetos existentes
-- [x] Fluxo Discovery para projetos novos
-- [x] Exibição de status no terminal ao carregar
+## Pendente manual
 
-## Fase 7 — Persistência de sessões
-- [x] Salvar histórico de mensagens em pasta local
-- [x] Retomar sessões anteriores
-- [x] Compressão automática de contexto a ~200k tokens
-
-## Fase 8 — Gestão de artefatos
-- [x] Leitura de artefatos de `docs/`
-- [x] Escrita/atualização de artefatos
-- [x] Integração com contexto dos modelos
-
-## Fase 9 — Polish e release
-- [x] Testes e validação end-to-end
-- [x] Documentação (README)
-- [x] Primeira release no GitHub
-- [ ] Publicação no npm (manual pelo owner)
-
-## Fase 10 — Otimização de Memória e Modelos
-- [x] Atualizar default config para modelos enxutos (escala 4B a 8B).
-- [x] Limitar Docker para suportar apenas 1 modelo na RAM simultaneamente.
-- [x] Configurar `OLLAMA_KEEP_ALIVE` para 1 minuto a fim de poupar memória do servidor.
-- [x] Atualizar scripts de `pull_models` para refletir as versões menores.
-
-## Fase 11 — UX de Ferramentas e Reforço de Pipeline
-- [x] Implementar tag `<transition_state>` no `pipelineEngine.ts` para forçar a State Machine a girar e passar o bastão entre agentes.
-- [x] Ocultar tags XML do usuário durante o streaming, pedindo permissão de ferramenta imediatamente ao fechar a tag.
-- [x] Modificar `toolRunner.ts` para usar `spawn` em background para comandos de servidor (ex: `npm run dev`), exibindo os logs no chat, mas destravando a IA.
+- [ ] Push final para o GitHub.
+- [ ] Publicacao no npm, opcional e manual pelo owner.

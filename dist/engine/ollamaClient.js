@@ -5,8 +5,7 @@ const configManager_1 = require("../data/configManager");
 class OllamaClient {
     endpoint;
     constructor() {
-        const config = (0, configManager_1.loadConfig)();
-        this.endpoint = config.ollamaEndpoint.replace(/\/$/, ""); // Remove trailing slash
+        this.endpoint = (0, configManager_1.getOllamaEndpoint)().replace(/\/$/, ""); // Remove trailing slash
     }
     /**
      * Pings the Ollama server to check if it's healthy and responding.
@@ -41,12 +40,13 @@ class OllamaClient {
      * Creates an async generator to stream completions from the Ollama chat endpoint.
      * Yields the message content chunks recursively.
      */
-    async *streamChat(model, messages) {
+    async *streamChat(model, messages, abortSignal) {
         const response = await fetch(`${this.endpoint}/api/chat`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
+            signal: abortSignal,
             body: JSON.stringify({
                 model,
                 messages,

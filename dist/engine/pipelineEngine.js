@@ -2,17 +2,18 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PipelineEngine = void 0;
 const agentLoader_1 = require("../agents/agentLoader");
-const ollamaClient_1 = require("./ollamaClient");
 const configManager_1 = require("../data/configManager");
 const chatInterface_1 = require("../cli/chatInterface");
 const toolRunner_1 = require("./toolRunner");
 const artifactManager_1 = require("./artifactManager");
+const modelRegistry_1 = require("../agents/modelRegistry");
+const providerFactory_1 = require("./providerFactory");
 class PipelineEngine {
     state = 'IDLE';
-    ollamaClient;
+    provider;
     history = [];
     constructor() {
-        this.ollamaClient = new ollamaClient_1.OllamaClient();
+        this.provider = (0, providerFactory_1.createProvider)();
     }
     getState() {
         return this.state;
@@ -34,7 +35,7 @@ class PipelineEngine {
     }
     getModelForRole(role) {
         const config = (0, configManager_1.loadConfig)();
-        return config.models[role] || config.models.orchestrator;
+        return (0, modelRegistry_1.getModelForProviderRole)(config.lastProvider, role);
     }
     injectContext(content) {
         this.history.push({ role: 'system', content });
@@ -50,8 +51,9 @@ class PipelineEngine {
     }
     getActiveConfig() {
         const role = this.getRoleForState(this.state);
+        const provider = (0, configManager_1.loadConfig)().lastProvider;
         const model = this.getModelForRole(role);
-        return { role, model };
+        return { provider, role, model };
     }
     async *processInput(userInput) {
         if (this.state === 'IDLE') {
@@ -65,15 +67,36 @@ class PipelineEngine {
             const agent = (0, agentLoader_1.loadAgent)(role);
             const model = this.getModelForRole(role);
             const config = (0, configManager_1.loadConfig)();
+            this.provider = (0, providerFactory_1.createProvider)(config.lastProvider);
             const messages = [
                 { role: 'system', content: agent.systemPrompt },
                 ...this.history
             ];
-            const stream = this.ollamaClient.streamChat(model, messages);
+            const stream = this.provider.stream({
+                provider: config.lastProvider,
+                model,
+                messages,
+                tools: [],
+                metadata: {
+                    cwd: process.cwd(),
+                    state: this.state,
+                    agentRole: role
+                }
+            });
             let assistantResponse = '';
             let tagBuffer = '';
             let insideTag = false;
-            for await (const chunk of stream) {
+            for await (const event of stream) {
+                if (event.type === 'error') {
+                    throw new Error(event.error.message);
+                }
+                if (event.type === 'done') {
+                    break;
+                }
+                if (event.type !== 'text_delta') {
+                    continue;
+                }
+                const chunk = event.text;
                 assistantResponse += chunk;
                 if (chunk.includes('<') || insideTag) {
                     if (!insideTag) {

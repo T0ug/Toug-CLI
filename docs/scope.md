@@ -1,69 +1,110 @@
-# Scope — Toug CLI (MVP)
+# Scope - Toug CLI
 
-## Incluído no MVP
+## MVP atual concluido
 
-### 1. Inicialização inteligente
-- Detectar estado do projeto ao iniciar:
-  - Pasta com `docs/` → Project Research + onboard
-  - Pasta com código sem `docs/` → inferir estado
-  - Pasta vazia → Discovery + Clarify Intent
-- Exibir status do projeto no terminal ao carregar
+O Toug CLI ja possui:
 
-### 2. Chat com streaming
-- Interface de chat no terminal
-- Respostas em streaming (token a token)
-- Cada mensagem exibe: agent + modelo utilizado
+- CLI em Node.js/TypeScript.
+- Pipeline forcada por agentes.
+- Integracao local com Ollama/Docker.
+- Streaming no terminal.
+- Ferramentas por XML para comando, leitura, escrita e transicao de estado.
+- Aprovacao humana para comandos.
+- Persistencia de sessoes.
+- Gestao de artefatos em `docs/`.
+- Deteccao de projeto novo/existente.
 
-### 3. Orquestração multi-modelo
-- Orchestrator recebe mensagem e roteia ao agent/modelo correto
-- 6 agents com modelos dedicados via Ollama API:
-  - Discovery (Gemma 3 27B IT)
-  - Architect (Qwen3 30B A3B Thinking)
-  - Executor (Qwen3-Coder-Next)
-  - Reviewer (DeepSeek-R1-Distill-Qwen-32B)
-  - Orchestrator (Qwen3 30B A3B Instruct)
-  - Project Research (Qwen3-Coder-Next)
-- Fallback automático para modelo alternativo + notificação
+## Proxima evolucao incluida no escopo
 
-### 4. Acesso a comandos do PC
-- Comandos de terminal/shell
-- Leitura de arquivos e diretórios
-- Criação e edição de arquivos
-- Execução de scripts
-- Aprovação do usuário por padrão
-- Modo auto-approve configurável (exceto admin)
+### 1. Provedores globais de IA
 
-### 5. Setup do Servidor Dedicado (Docker)
-- Configuração do `docker-compose.yml` para rodar o Ollama (GPU/CPU).
-- Scripts auxiliares (ex: `pull_models.sh`) para realizar o download prévio dos modelos mapeados.
+- Ao iniciar o CLI, perguntar sempre qual provedor usar.
+- Manter Ollama/local como provedor disponivel.
+- Adicionar Gemini como provedor disponivel.
+- Enter no prompt inicial usa o ultimo provedor salvo.
+- Permitir alterar provedor e API keys Gemini pelo comando `/config`.
+- Configuracao somente global em `~/.toug-cli`, sem configuracao por projeto.
+- Salvar API keys Gemini em texto puro.
+- Permitir multiplas API keys Gemini com fallback automatico.
 
-### 6. Pipeline enforcement
-- Pipeline fixa e embutida no CLI
-- Agents forçados a seguir o fluxo definido
-- Baseada na estrutura `.agents/` da PIPELINE_EXAMPLE
+### 2. Modelos por agente definidos pelo CLI
 
-### 7. Gestão de artefatos
-- Leitura e escrita em `docs/` do projeto
-- Artefatos: idea.md, scope.md, tasks.md, decision_log.md, handoff.md, project_status.md, etc.
+- Remover o arquivo de configuracao do usuario como fonte da verdade para modelo por agente.
+- Manter o mapeamento de modelos no codigo/regras versionadas do CLI.
+- Usar os modelos Gemini aprovados:
+  - `orchestrator`: `gemini-2.5-flash`
+  - `discovery`: `gemini-2.5-flash`
+  - `project_research`: `gemini-2.5-flash`
+  - `architect`: `gemini-2.5-pro`
+  - `executor`: `gemini-2.5-pro`
+  - `reviewer`: `gemini-2.5-pro`
 
-### 8. Persistência de sessões
-- Histórico salvo em pasta local (instalação do CLI)
-- Retomada de sessões anteriores
-- Compressão automática de contexto a ~200k tokens
+### 3. Gemini com streaming e function calling
 
-### 9. Configuração
-- Arquivo `toug.config.json`
-- Setup na primeira inicialização
+- Usar SDK oficial `@google/genai`.
+- Streaming sempre.
+- Gemini deve usar Function Calling nativo para ferramentas.
+- Ollama/local pode manter XML como compatibilidade.
+- Normalizar ambos os transportes para as mesmas ferramentas internas:
+  - `run_command`
+  - `read_file`
+  - `write_file`
+- `transition_state` nao e ferramenta publica do modelo; transicoes sao decisao privada do `PipelineController`.
 
-### 10. Distribuição
-- npm global: `npm install -g toug-cli`
-- Repositório GitHub: "Toug CLI"
-- Releases versionadas
+### 4. Seguranca de ferramentas
 
-## Restrições técnicas
+- Agents operam por padrao somente na pasta onde o CLI foi iniciado.
+- Acesso fora da pasta do projeto exige aprovacao explicita, mesmo com auto-approve.
+- Se o modelo tentar acessar fora do projeto sem pedido explicito anterior, pedir aprovacao explicando o risco.
+- `autoApproveMode` tambem vale para Gemini, mas apenas para acoes nao sensiveis.
+- Comandos sensiveis nunca passam por auto-approve:
+  - comando fora da pasta do projeto;
+  - comandos PowerShell;
+  - qualquer acao que exija permissao de administrador.
 
-- **Linguagem**: Node.js / TypeScript
-- **OS**: Windows apenas (MVP)
-- **API**: Ollama API, sem autenticação
-- **Rede**: servidor dedicado na rede local
-- **Comando**: `toug`
+### 5. Tratamento de erros Gemini
+
+- `400 INVALID_ARGUMENT`: avisar, encerrar sessao de forma controlada, voltar ao terminal Windows, gerar log `.txt` e abrir dialogo/Explorer para salvar.
+- `400 FAILED_PRECONDITION`: tentar proxima API key.
+- `403 PERMISSION_DENIED`: tentar proxima API key.
+- `404 NOT_FOUND`: tentar uma vez novamente; se repetir, avisar e voltar para `Voce:`.
+- `429 RESOURCE_EXHAUSTED`: tentar proxima API key.
+- `500 INTERNAL`: tentar novamente; se repetir, perguntar se quer reduzir contexto ou cancelar a mensagem anterior.
+- `503 UNAVAILABLE`: tentar novamente; se repetir, tentar proxima API key.
+- `504 DEADLINE_EXCEEDED`: avisar e voltar para `Voce:`.
+- Key vazada/bloqueada: perguntar se remove/desativa da configuracao local.
+- Safety/recitation: perguntar se remove/desativa da configuracao local.
+- Se todas as API keys falharem, exibir cada API key completa com o motivo da falha.
+
+### 6. Logs fatais e persistencia
+
+- Qualquer erro fatal deve gerar log `.txt`.
+- No Windows, abrir dialogo/Explorer para o usuario escolher onde salvar.
+- Log fatal inclui historico/contexto da sessao.
+- Log fatal pode conter API keys completas.
+- Sessao deve ser salva a cada mensagem, nao apenas ao encerrar.
+
+### 7. Interrupcao de geracao
+
+- Suportar `/stop`.
+- Suportar `Ctrl+C` para parar apenas a geracao atual.
+- Nao encerrar o CLI ao interromper uma geracao.
+- Salvar resposta parcial no historico.
+- Voltar ao prompt `Voce:` mantendo o mesmo estado da pipeline.
+
+### 8. Pipeline embutida no CLI
+
+- Projetos de usuario nao devem precisar de `.agents/`, `GEMINI.md` ou `PIPELINE_EXAMPLE`.
+- Agents, skills, regras, workflows, templates e artefatos-base devem estar embutidos/versionados no CLI.
+- Projeto novo cria `docs/` somente apos Discovery + `clarify-intent` e confirmacao explicita.
+- Projeto existente com codigo mas sem docs cria `docs/` somente apos Project Research + `research-existing-project` e confirmacao explicita.
+- A confirmacao explicita deve ser registrada em `docs/decision_log.md`.
+
+## Restricoes tecnicas
+
+- Linguagem: Node.js / TypeScript.
+- OS: Windows apenas nesta etapa.
+- Gemini via SDK oficial `@google/genai`.
+- Ollama/local continua suportado.
+- Configuracao global em `~/.toug-cli`.
+- Provedor ativo e global para a sessao inteira.

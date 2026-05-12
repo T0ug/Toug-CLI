@@ -51,8 +51,9 @@ const promptUser = async (text) => {
     return await rl.question(`${exports.COLORS.CYAN}${text}${exports.COLORS.RESET}`);
 };
 exports.promptUser = promptUser;
-const printHeader = (agent, model) => {
-    process.stdout.write(`\n${exports.COLORS.GREEN}>> [${agent.toUpperCase()} @ ${model}]${exports.COLORS.RESET}\n`);
+const printHeader = (agent, model, provider) => {
+    const providerLabel = provider ? `${provider.toUpperCase()} / ` : '';
+    process.stdout.write(`\n${exports.COLORS.GREEN}>> [${providerLabel}${agent.toUpperCase()} @ ${model}]${exports.COLORS.RESET}\n`);
 };
 exports.printHeader = printHeader;
 const printError = (msg, err) => {
