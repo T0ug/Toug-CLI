@@ -9,13 +9,13 @@ O Toug CLI é uma ferramenta de terminal que conecta a modelos de IA locais (via
 ## ✨ Features
 
 - **Pipeline Forçada** — State Machine com 6 estados (Discovery → Architect → Executor → Reviewer → Orchestrator → Project Research).
-- **LLM 100% Local** — Roda modelos via Ollama em Docker, sem dependência de APIs cloud.
+- **Provedores Híbridos (Local/Cloud)** — Roda local via Ollama ou global via Google Gemini, integrando Function Calling nativo e Fallback automático de API Keys.
 - **Tool Calling Nativo** — A IA executa comandos shell (`<run_command>`), lê e grava arquivos (`<read_file>`, `<write_file>`).
 - **Approval Gates** — Todo comando destrutivo exige aprovação humana antes de executar.
-- **Sessões Persistentes** — Salva e restaura conversas entre reinicializações.
-- **Compressão de Contexto** — Contexto longo é automaticamente comprimido para sessões extensas.
-- **Detecção Inteligente de Projeto** — Ao iniciar, detecta se o projeto é novo ou existente e ajusta o estado automaticamente.
-- **Multi-Model por Agente** — Cada agente usa o modelo mais adequado (configurável via `toug.config.json`).
+- **Sessões Persistentes** — Snapshot salvo a cada iteração individual na conversa. Você retoma de onde parou infalivelmente.
+- **Detecção Inteligente de Projeto** — Inicia em Discovery para novos projetos, Architect/Research para legados baseando-se em `docs/`.
+- **Limites de Sandbox e Cancelamento** — Geração abortável via `Ctrl+C` iterativo sem desligar o console. Path traversal e saídas fora do repositório estritamente banidas.
+- **Multi-Model por Agente** — Cada etapa assume o modelo local ou cloud otimizado nas configurações.
 
 ---
 
@@ -75,18 +75,37 @@ npm run start
 
 ## ⚙️ Configuração
 
-O arquivo de configuração é criado automaticamente em `~/.toug-cli/toug.config.json` na primeira execução.
+O arquivo de configuração `v2` é criado dinamicamente em `~/.toug-cli/toug.config.json` na primeira execução. A CLI pedirá que você escolha o **Ollama** ou **Gemini** primariamente.
 
 ```json
 {
-  "ollamaEndpoint": "http://localhost:11434",
+  "lastProvider": "gemini",
+  "ollama": {
+    "endpoint": "http://localhost:11434"
+  },
+  "gemini": {
+    "apiKeys": [
+      "SUA_API_KEY_AKI",
+      "OUTRA_API_KEY_SECUNDARIA_AKI"
+    ]
+  },
   "models": {
-    "discovery": "gemma3:4b",
-    "architect": "deepseek-r1:8b",
-    "executor": "qwen2.5-coder:7b",
-    "reviewer": "deepseek-r1:8b",
-    "orchestrator": "qwen3:8b",
-    "project_research": "qwen2.5-coder:7b"
+    "ollama": {
+      "discovery": "gemma3:4b",
+      "architect": "deepseek-r1:8b",
+      "executor": "qwen2.5-coder:7b",
+      "reviewer": "deepseek-r1:8b",
+      "orchestrator": "qwen3:8b",
+      "project_research": "qwen2.5-coder:7b"
+    },
+    "gemini": {
+      "discovery": "gemini-2.5-flash",
+      "architect": "gemini-2.5-pro",
+      "executor": "gemini-2.5-flash",
+      "reviewer": "gemini-2.5-pro",
+      "orchestrator": "gemini-2.5-flash",
+      "project_research": "gemini-2.5-flash"
+    }
   },
   "autoApproveMode": false
 }
@@ -124,9 +143,11 @@ IDLE → ORCHESTRATING → DISCOVERY → ARCHITECT → EXECUTING → REVIEW
 
 | Comando | Descrição |
 |---------|-----------|
-| `npm run build` | Compila o TypeScript |
-| `npm run start` | Inicia o CLI interativo |
-| `/exit` | Encerra a sessão (auto-save) |
+| `npm run build` | Compila o código TypeScript base |
+| `npm run start` | Inicia o CLI interativomente |
+| `/config` | Invoca o ConfigWizard e ajusta provedor Global/Ollama/Gemini localmente |
+| `/exit` | Encerra a sessão atual (o autosave garantirá a volta intacta) |
+| `Ctrl+C` | (Se rodando) Aborta o stream de geração sem matar o processo. |
 
 ---
 
