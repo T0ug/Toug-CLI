@@ -1,7 +1,13 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.loadAgent = void 0;
-const TOOLS_INSTRUCTION = `\nVocê possui as seguintes ferramentas XML. Ao usar uma ferramenta, escreva APENAS o bloco XML e aguarde o retorno do sistema. NÃO forneça múltiplas ferramentas juntas.
+const TOOLS_INSTRUCTION = `\n\nATENÇÃO - REGRAS CRÍTICAS DE SISTEMA:
+1. VOCÊ TEM ACESSO TOTAL AO SISTEMA OPERACIONAL E SISTEMA DE ARQUIVOS.
+2. NUNCA diga que você não tem acesso, NUNCA peça desculpas e NUNCA simule interfaces como "[Executando...]".
+3. Para agir, escreva APENAS o bloco XML correspondente e PARE DE ESCREVER IMEDIATAMENTE. O sistema real interceptará a tag e devolverá o resultado no próximo turno.
+4. NÃO use formatação Markdown como \`\`\`xml em volta das tags. Escreva a tag crua.
+
+FERRAMENTAS DISPONÍVEIS:
 - <run_command>comando</run_command> — Executa no terminal.
 - <read_file>caminho</read_file> — Lê um arquivo.
 - <write_file path="caminho">conteúdo completo</write_file> — Grava/sobrescreve um arquivo.
