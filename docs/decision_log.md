@@ -30,3 +30,18 @@
 | 026 | 2026-05-12 | Task 011 formalizada como primeira execucao da Fase 12 | Orchestrator dividiu a implementacao em uma fundacao executavel: Provider abstraction, Config v2 e Model Registry antes de integrar Gemini real | Orchestrator |
 | 027 | 2026-05-12 | Inconsistencia documental corrigida antes da execucao | Reviewer bloqueou o avanco por divergencias entre scope, implementation_plan e handoff; Orchestrator coordenou correcao minima para revalidacao | Orchestrator |
 | 028 | 2026-05-12 | Revalidacao documental aprovada para Task 011 | Reviewer confirmou que scope, implementation_plan, handoff, project_status, tasks e decision_log estao alinhados para liberar Executor mediante confirmacao do usuario | Reviewer |
+| 029 | 2026-05-12 | Entrega da Task 011 aprovada | Reviewer verificou as evidências no código-fonte, status de compilação e limites de escopo e aprovou a implementação da Fase 12.1. | Reviewer |
+| 030 | 2026-05-12 | Task 012 modelada | Orchestrator definiu as regras precisas para fundar o provider do Gemini, focadas em `@google/genai`, Streaming e Tool calling sem impactar a rede ou interfaces legadas | Orchestrator |
+| 031 | 2026-05-12 | Entrega da Task 012 aprovada | Reviewer certificou a build TS do provedor implementado com SDK do Gemini e confirmou que atende fielmente o escopo e contrato sem quebrar dependências nativas | Reviewer |
+| 032 | 2026-05-12 | Task 013 planejada | Orchestrator definiu a necessidade imediata de atualizar a lógica procedural do Pipeline Engine para executar os eventos FunctionCall que o provedor emite. | Orchestrator |
+| 033 | 2026-05-12 | Entrega da Task 013 aprovada | Reviewer atestou incondicionalmente a sintonia segura gerada que converte Function Calls para os matchers regex originais de aprovação interativa. | Reviewer |
+| 034 | 2026-05-12 | Task 014 orquestrada | Orchestrator isolou as refatorações de UI e menu `/config` (`index.ts`) para evitar poluição visual de verificações cruas do Ollama atuando no Gemini | Orchestrator |
+| 035 | 2026-05-12 | Entrega da Task 014 aprovada | Reviewer verificou as adaptações de interface nativa em `index.ts` que suprimem loggers desnecessários. Código compilado com sucesso. | Reviewer |
+| 036 | 2026-05-12 | Task 015 definida e projetada | Orchestrator modelou a estrutura rígida contra crashe silencioso englobando OS command interativo para fatal error no Windows e persistência loop infinita para o contexto | Orchestrator |
+| 037 | 2026-05-12 | Entrega da Task 015 aprovada | Reviewer validou a injeção do catch node via fs file-dump. Sessão Cíclica ratificada e sem loops bloqueantes no iterador do engine. | Reviewer |
+| 038 | 2026-05-12 | Task 016 orquestrada | Orchestrator delimitou limites de OS para Path Traversal em files nativos e previu o uso de thead lock por evento Ctlr+c | Orchestrator |
+| 039 | 2026-05-12 | Entrega da Task 016 aprovada | Reviewer validou estaticamente as seguranças implementáveis pelo Executor para a quebra de instâncias (AbortController vs SIGINT) sem bugs. | Reviewer |
+| 040 | 2026-05-12 | Task 017 orquestrada | Orchestrator mapeou a mitigação de early-writes nos agentes de Discovery e decretou fundação terminal para a Fase 12 | Orchestrator |
+| 041 | 2026-05-12 | Entrega da Task 017 aprovada e Conclusão da Fase 12 | Reviewer validou os escapes impositivos dentro das injeções puramente textuais de `agentLoader.ts`. Nenhuma colisão estrutural observada, atestando Fase 12 com êxito final | Reviewer |
+
+

@@ -3,6 +3,10 @@ import path from 'path';
 
 export const readArtifact = (filePath: string, cwd: string): string => {
     const fullPath = path.resolve(cwd, filePath);
+    const cleanCwd = path.resolve(cwd);
+    if (!fullPath.startsWith(cleanCwd)) {
+        return `[ERRO] Acesso negado: O caminho '${filePath}' aponta para fora do diretorio do projeto. Sandbox restrita ao workspace atual.`;
+    }
     if (!fs.existsSync(fullPath)) {
         return `[ERRO] Arquivo não encontrado: ${filePath}`;
     }
@@ -19,6 +23,10 @@ export const readArtifact = (filePath: string, cwd: string): string => {
 
 export const writeArtifact = (filePath: string, content: string, cwd: string): string => {
     const fullPath = path.resolve(cwd, filePath);
+    const cleanCwd = path.resolve(cwd);
+    if (!fullPath.startsWith(cleanCwd)) {
+        return `[ERRO] Acesso negado: O caminho '${filePath}' aponta para fora do diretorio do projeto. Sandbox restrita ao workspace atual.`;
+    }
     try {
         const dir = path.dirname(fullPath);
         if (!fs.existsSync(dir)) {
@@ -33,6 +41,10 @@ export const writeArtifact = (filePath: string, content: string, cwd: string): s
 
 export const listArtifacts = (dirPath: string, cwd: string): string[] => {
     const fullPath = path.resolve(cwd, dirPath);
+    const cleanCwd = path.resolve(cwd);
+    if (!fullPath.startsWith(cleanCwd)) {
+        return [];
+    }
     if (!fs.existsSync(fullPath)) {
         return [];
     }

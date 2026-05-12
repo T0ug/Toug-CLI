@@ -16,25 +16,31 @@
 
 ## Fase 12 - Provedores Globais e Gemini
 
-- [ ] Introduzir selecao global de provedor no start do CLI: Ollama/local ou Gemini.
-- [ ] Permitir alterar provedor e API keys Gemini via `/config`.
-- [ ] Migrar mapeamento agent -> modelo para regras internas versionadas do CLI.
-- [ ] Adicionar integracao Gemini com SDK oficial `@google/genai`.
-- [ ] Implementar streaming Gemini.
-- [ ] Implementar Function Calling Gemini para `run_command`, `read_file` e `write_file`.
-- [ ] Manter XML como compatibilidade para Ollama/local.
-- [ ] Implementar fallback entre multiplas API keys Gemini.
-- [ ] Implementar matriz de tratamento de erros Gemini aprovada.
-- [ ] Gerar log `.txt` para erros fatais com dialogo/Explorer no Windows.
-- [ ] Salvar sessao a cada mensagem.
-- [ ] Implementar `/stop` e `Ctrl+C` para interromper geracao atual sem encerrar CLI.
-- [ ] Aplicar limites de seguranca para comandos e arquivos fora da pasta do projeto.
-- [ ] Embutir agents, skills, regras, workflows, templates e artefatos-base no CLI.
-- [ ] Garantir que novos projetos/projetos existentes sem docs so criem artefatos apos resumo de entendimento confirmado.
+- [x] Introduzir selecao global de provedor no start do CLI: Ollama/local ou Gemini.
+- [x] Permitir alterar provedor e API keys Gemini via `/config`.
+- [x] Migrar mapeamento agent -> modelo para regras internas versionadas do CLI.
+- [x] Adicionar integracao Gemini com SDK oficial `@google/genai`.
+- [x] Implementar streaming Gemini.
+- [x] Implementar Function Calling Gemini para `run_command`, `read_file` e `write_file`.
+- [x] Manter XML como compatibilidade para Ollama/local.
+- [x] Implementar fallback entre multiplas API keys Gemini.
+- [x] Implementar matriz de tratamento de erros Gemini aprovada.
+- [x] Gerar log `.txt` para erros fatais com dialogo/Explorer no Windows.
+- [x] Salvar sessao a cada mensagem.
+- [x] Implementar `/stop` e `Ctrl+C` para interromper geracao atual sem encerrar CLI.
+- [x] Aplicar limites de seguranca para comandos e arquivos fora da pasta do projeto.
+- [x] Embutir agents, skills, regras, workflows, templates e artefatos-base no CLI.
+- [x] Garantir que novos projetos/projetos existentes sem docs so criem artefatos apos resumo de entendimento confirmado.
 
 ### Tasks formais
 
 - [x] Task 011 - Fase 12.1 - Base de Providers, Config v2 e Model Registry (`docs/task_011.md`)
+- [x] Task 012 - Fase 12.2 - Provedor Gemini e Function Calling (`docs/task_012.md`)
+- [x] Task 013 - Fase 12.3 - Pipeline Engine com Suporte a Function Calling Nativo (`docs/task_013.md`)
+- [x] Task 014 - Fase 12.4 - Interface de Seleção Global e Gemini Configs (`docs/task_014.md`)
+- [x] Task 015 - Fase 12.5 - Robustez, Tratamento de Erros e Sessão Cíclica (`docs/task_015.md`)
+- [x] Task 016 - Fase 12.6 - Controle de Interrupção (SIGINT) e Limites de Segurança (`docs/task_016.md`)
+- [x] Task 017 - Fase 12.7 - Restrição de Artefatos Iniciais e Finalização da Fase 12 (`docs/task_017.md`)
 
 ## Pendente manual
 

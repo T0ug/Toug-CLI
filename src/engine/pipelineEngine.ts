@@ -8,11 +8,22 @@ import { readArtifact, writeArtifact } from './artifactManager';
 import { getModelForProviderRole } from '../agents/modelRegistry';
 import { createProvider } from './providerFactory';
 import { AIProvider, ProviderMessage } from '../providers/types';
+import { saveSession } from '../data/sessionManager';
 
 export class PipelineEngine {
     private state: PipelineState = 'IDLE';
     private provider: AIProvider;
     private history: Message[] = [];
+    public isGenerating: boolean = false;
+    private currentAbortController: AbortController | null = null;
+
+    public abortCurrentStream(): boolean {
+        if (this.isGenerating && this.currentAbortController) {
+            this.currentAbortController.abort();
+            return true;
+        }
+        return false;
+    }
 
     constructor() {
         this.provider = createProvider();
@@ -74,148 +85,178 @@ export class PipelineEngine {
 
         let keepRunning = true;
         this.history.push({ role: 'user', content: userInput });
+        saveSession(this.history, this.state, process.cwd());
 
-        while (keepRunning) {
-            keepRunning = false;
+        try {
+            while (keepRunning) {
+                keepRunning = false;
+                this.isGenerating = true;
+                this.currentAbortController = new AbortController();
 
-            const role = this.getRoleForState(this.state);
-            const agent = loadAgent(role);
-            const model = this.getModelForRole(role);
-            const config = loadConfig();
-            this.provider = createProvider(config.lastProvider);
+                const role = this.getRoleForState(this.state);
+                const agent = loadAgent(role);
+                const model = this.getModelForRole(role);
+                const config = loadConfig();
+                this.provider = createProvider(config.lastProvider);
 
-            const messages: ProviderMessage[] = [
-                { role: 'system', content: agent.systemPrompt },
-                ...this.history
-            ];
+                const messages: ProviderMessage[] = [
+                    { role: 'system', content: agent.systemPrompt },
+                    ...this.history
+                ];
 
-            const stream = this.provider.stream({
-                provider: config.lastProvider,
-                model,
-                messages,
-                tools: [],
-                metadata: {
-                    cwd: process.cwd(),
-                    state: this.state,
-                    agentRole: role
-                }
-            });
-            let assistantResponse = '';
+                const stream = this.provider.stream({
+                    provider: config.lastProvider,
+                    model,
+                    messages,
+                    tools: [],
+                    metadata: {
+                        cwd: process.cwd(),
+                        state: this.state,
+                        agentRole: role
+                    }
+                });
+                let assistantResponse = '';
 
-            let tagBuffer = '';
-            let insideTag = false;
+                let tagBuffer = '';
+                let insideTag = false;
 
-            for await (const event of stream) {
-                if (event.type === 'error') {
-                    throw new Error(event.error.message);
-                }
+                for await (const event of stream) {
+                    if (this.currentAbortController?.signal.aborted) {
+                        yield `\n${COLORS.YELLOW}[SYSTEM] Geracao interrompida pelo usuario.${COLORS.RESET}\n`;
+                        keepRunning = false;
+                        break;
+                    }
 
-                if (event.type === 'done') {
-                    break;
-                }
+                    if (event.type === 'error') {
+                        throw new Error(event.error.message);
+                    }
 
-                if (event.type !== 'text_delta') {
-                    continue;
-                }
+                    if (event.type === 'done') {
+                        break;
+                    }
 
-                const chunk = event.text;
-                assistantResponse += chunk;
+                    if (event.type === 'tool_call') {
+                        const { name, args } = event.call;
+                        yield `\n${COLORS.MAGENTA}[Function Calling nativo detectado: ${name}]${COLORS.RESET}\n`;
 
-                if (chunk.includes('<') || insideTag) {
-                    if (!insideTag) {
-                        insideTag = true;
-                        const splitIdx = chunk.indexOf('<');
-                        if (splitIdx > 0) {
-                            yield chunk.substring(0, splitIdx);
-                            tagBuffer += chunk.substring(splitIdx);
+                        if (name === 'run_command') {
+                            assistantResponse += `<run_command>\n${args.command || ''}\n</run_command>`;
+                        } else if (name === 'read_file') {
+                            assistantResponse += `<read_file>\n${args.path || ''}\n</read_file>`;
+                        } else if (name === 'write_file') {
+                            assistantResponse += `<write_file path="${args.path || ''}">\n${args.content || ''}\n</write_file>`;
+                        }
+                        break;
+                    }
+
+                    if (event.type !== 'text_delta') {
+                        continue;
+                    }
+
+                    const chunk = event.text;
+                    assistantResponse += chunk;
+
+                    if (chunk.includes('<') || insideTag) {
+                        if (!insideTag) {
+                            insideTag = true;
+                            const splitIdx = chunk.indexOf('<');
+                            if (splitIdx > 0) {
+                                yield chunk.substring(0, splitIdx);
+                                tagBuffer += chunk.substring(splitIdx);
+                            } else {
+                                tagBuffer += chunk;
+                            }
                         } else {
                             tagBuffer += chunk;
                         }
+
+                        const isOpening = /<(run_command|read_file|write_file|transition_state)/.test(tagBuffer);
+                        const isClosing = /<\/(run_command|read_file|write_file|transition_state)>/.test(tagBuffer);
+
+                        if (isClosing) {
+                            insideTag = false;
+                            yield `\n${COLORS.MAGENTA}[Ferramenta detectada. Interceptando e executando...]${COLORS.RESET}\n`;
+                            break; // Stop stream and process tool immediately
+                        } else if (tagBuffer.length > 35 && !isOpening) {
+                            yield tagBuffer;
+                            tagBuffer = '';
+                            insideTag = false;
+                        }
                     } else {
-                        tagBuffer += chunk;
+                        yield chunk;
                     }
+                }
 
-                    const isOpening = /<(run_command|read_file|write_file|transition_state)/.test(tagBuffer);
-                    const isClosing = /<\/(run_command|read_file|write_file|transition_state)>/.test(tagBuffer);
+                this.history.push({ role: 'assistant', content: assistantResponse });
 
-                    if (isClosing) {
-                        insideTag = false;
-                        yield `\n${COLORS.MAGENTA}[Ferramenta detectada. Interceptando e executando...]${COLORS.RESET}\n`;
-                        break; // Stop stream and process tool immediately
-                    } else if (tagBuffer.length > 35 && !isOpening) {
-                        yield tagBuffer;
-                        tagBuffer = '';
-                        insideTag = false;
+                // === TOOL: run_command ===
+                const cmdMatch = /<run_command>([\s\S]*?)<\/run_command>/i.exec(assistantResponse);
+                if (cmdMatch) {
+                    const command = cmdMatch[1].trim();
+                    let approved = config.autoApproveMode;
+                    if (!approved) {
+                        const ans = await promptUser(`\n${COLORS.YELLOW}[TOOL] Executar comando: '${command}'. Permitir? Y/n: ${COLORS.RESET}`);
+                        if (ans.toLowerCase() !== 'n') approved = true;
                     }
-                } else {
-                    yield chunk;
+                    if (approved) {
+                        yield `\n${COLORS.YELLOW}[Executando...]${COLORS.RESET}\n`;
+                        const result = await executeShellCommand(command);
+                        this.history.push({ role: 'system', content: `Resultado do comando '${command}':\n${result}` });
+                    } else {
+                        this.history.push({ role: 'system', content: `Usuário RECUSOU execução de '${command}'.` });
+                    }
+                    keepRunning = true;
                 }
-            }
 
-            this.history.push({ role: 'assistant', content: assistantResponse });
-
-            // === TOOL: run_command ===
-            const cmdMatch = /<run_command>([\s\S]*?)<\/run_command>/i.exec(assistantResponse);
-            if (cmdMatch) {
-                const command = cmdMatch[1].trim();
-                let approved = config.autoApproveMode;
-                if (!approved) {
-                    const ans = await promptUser(`\n${COLORS.YELLOW}[TOOL] Executar comando: '${command}'. Permitir? Y/n: ${COLORS.RESET}`);
-                    if (ans.toLowerCase() !== 'n') approved = true;
-                }
-                if (approved) {
-                    yield `\n${COLORS.YELLOW}[Executando...]${COLORS.RESET}\n`;
-                    const result = await executeShellCommand(command);
-                    this.history.push({ role: 'system', content: `Resultado do comando '${command}':\n${result}` });
-                } else {
-                    this.history.push({ role: 'system', content: `Usuário RECUSOU execução de '${command}'.` });
-                }
-                keepRunning = true;
-            }
-
-            // === TOOL: read_file ===
-            const readMatch = /<read_file>([\s\S]*?)<\/read_file>/i.exec(assistantResponse);
-            if (readMatch) {
-                const filePath = readMatch[1].trim();
-                const cwd = process.cwd();
-                const content = readArtifact(filePath, cwd);
-                this.history.push({ role: 'system', content: `Conteúdo de '${filePath}':\n${content}` });
-                yield `\n${COLORS.CYAN}[Lido: ${filePath}]${COLORS.RESET}\n`;
-                keepRunning = true;
-            }
-
-            // === TOOL: write_file ===
-            const writeMatch = /<write_file\s+path="([^"]+)">(([\s\S]*?))<\/write_file>/i.exec(assistantResponse);
-            if (writeMatch) {
-                const filePath = writeMatch[1].trim();
-                const fileContent = writeMatch[2];
-                let approved = config.autoApproveMode;
-                if (!approved) {
-                    const preview = fileContent.length > 200 ? fileContent.substring(0, 200) + '...' : fileContent;
-                    yield `\n${COLORS.YELLOW}[TOOL] Gravar arquivo: '${filePath}'\nPreview: ${preview}${COLORS.RESET}\n`;
-                    const ans = await promptUser(`${COLORS.YELLOW}Permitir gravação? Y/n: ${COLORS.RESET}`);
-                    if (ans.toLowerCase() !== 'n') approved = true;
-                }
-                if (approved) {
+                // === TOOL: read_file ===
+                const readMatch = /<read_file>([\s\S]*?)<\/read_file>/i.exec(assistantResponse);
+                if (readMatch) {
+                    const filePath = readMatch[1].trim();
                     const cwd = process.cwd();
-                    const result = writeArtifact(filePath, fileContent, cwd);
-                    this.history.push({ role: 'system', content: result });
-                    yield `\n${COLORS.GREEN}[Gravado: ${filePath}]${COLORS.RESET}\n`;
-                } else {
-                    this.history.push({ role: 'system', content: `Usuário RECUSOU gravação de '${filePath}'.` });
+                    const content = readArtifact(filePath, cwd);
+                    this.history.push({ role: 'system', content: `Conteúdo de '${filePath}':\n${content}` });
+                    yield `\n${COLORS.CYAN}[Lido: ${filePath}]${COLORS.RESET}\n`;
+                    keepRunning = true;
                 }
-                keepRunning = true;
-            }
 
-            // === TOOL: transition_state ===
-            const transMatch = /<transition_state>([\s\S]*?)<\/transition_state>/i.exec(assistantResponse);
-            if (transMatch) {
-                const newState = transMatch[1].trim().toUpperCase() as PipelineState;
-                this.transition(newState);
-                this.history.push({ role: 'system', content: `[SYSTEM] Transição efetuada com sucesso para o estado: ${newState}. O novo agente agora assume o controle da conversa.` });
-                yield `\n${COLORS.CYAN}[Estado alterado para: ${newState}]${COLORS.RESET}\n`;
-                keepRunning = true;
+                // === TOOL: write_file ===
+                const writeMatch = /<write_file\s+path="([^"]+)">(([\s\S]*?))<\/write_file>/i.exec(assistantResponse);
+                if (writeMatch) {
+                    const filePath = writeMatch[1].trim();
+                    const fileContent = writeMatch[2];
+                    let approved = config.autoApproveMode;
+                    if (!approved) {
+                        const preview = fileContent.length > 200 ? fileContent.substring(0, 200) + '...' : fileContent;
+                        yield `\n${COLORS.YELLOW}[TOOL] Gravar arquivo: '${filePath}'\nPreview: ${preview}${COLORS.RESET}\n`;
+                        const ans = await promptUser(`${COLORS.YELLOW}Permitir gravação? Y/n: ${COLORS.RESET}`);
+                        if (ans.toLowerCase() !== 'n') approved = true;
+                    }
+                    if (approved) {
+                        const cwd = process.cwd();
+                        const result = writeArtifact(filePath, fileContent, cwd);
+                        this.history.push({ role: 'system', content: result });
+                        yield `\n${COLORS.GREEN}[Gravado: ${filePath}]${COLORS.RESET}\n`;
+                    } else {
+                        this.history.push({ role: 'system', content: `Usuário RECUSOU gravação de '${filePath}'.` });
+                    }
+                    keepRunning = true;
+                }
+
+                // === TOOL: transition_state ===
+                const transMatch = /<transition_state>([\s\S]*?)<\/transition_state>/i.exec(assistantResponse);
+                if (transMatch) {
+                    const newState = transMatch[1].trim().toUpperCase() as PipelineState;
+                    this.transition(newState);
+                    this.history.push({ role: 'system', content: `[SYSTEM] Transição efetuada com sucesso para o estado: ${newState}. O novo agente agora assume o controle da conversa.` });
+                    yield `\n${COLORS.CYAN}[Estado alterado para: ${newState}]${COLORS.RESET}\n`;
+                    keepRunning = true;
+                }
+
+                saveSession(this.history, this.state, process.cwd());
             }
+        } finally {
+            this.isGenerating = false;
+            this.currentAbortController = null;
         }
     }
 }

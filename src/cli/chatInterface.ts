@@ -34,3 +34,7 @@ export const printError = (msg: string, err: any) => {
 export const closeChat = () => {
     rl.close();
 };
+
+export const onInterrupt = (cb: () => void) => {
+    rl.on('SIGINT', cb);
+};

@@ -1,32 +1,41 @@
 #!/usr/bin/env node
+import fs from 'fs';
+import path from 'path';
+import { execSync } from 'child_process';
 import { PipelineEngine } from './engine/pipelineEngine';
 import { OllamaClient } from './engine/ollamaClient';
 import { detectProjectState } from './engine/projectDetector';
 import { loadConfig, saveConfig, isFirstRun, getConfigPath } from './data/configManager';
 import { saveSession, loadLatestSession, compressHistory } from './data/sessionManager';
-import { promptUser, printHeader, printError, closeChat, COLORS } from './cli/chatInterface';
+import { promptUser, printHeader, printError, closeChat, COLORS, onInterrupt } from './cli/chatInterface';
 
 async function configWizard() {
     console.log(`\n${COLORS.CYAN}Configuracao Inicial do Toug CLI${COLORS.RESET}\n`);
 
     const config = loadConfig();
 
-    console.log(`${COLORS.YELLOW}Provider atual:         ${COLORS.RESET}${config.lastProvider}`);
-    console.log(`${COLORS.YELLOW}Endpoint Ollama atual: ${COLORS.RESET}${config.ollama.endpoint}`);
-    console.log(`${COLORS.YELLOW}Arquivo de config:     ${COLORS.RESET}${getConfigPath()}\n`);
-
-    const ans = await promptUser(`${COLORS.YELLOW}O endpoint esta correto? (Y/n): ${COLORS.RESET}`);
-
-    if (ans.toLowerCase() === 'n') {
-        const newEndpoint = await promptUser(`${COLORS.CYAN}Digite o novo endpoint (ex: http://192.168.1.100:11434): ${COLORS.RESET}`);
-        if (newEndpoint.trim()) {
-            config.ollama.endpoint = newEndpoint.trim();
-            saveConfig(config);
-            console.log(`${COLORS.GREEN}Endpoint atualizado para: ${config.ollama.endpoint}${COLORS.RESET}\n`);
+    const providerChoice = await promptUser(`${COLORS.YELLOW}Escolha o Provider Padrao (1=Ollama, 2=Gemini): ${COLORS.RESET}`);
+    if (providerChoice === '2') {
+        config.lastProvider = 'gemini';
+        const key = await promptUser(`${COLORS.CYAN}Digite sua API Key do Gemini (opcional, ENTER para pular): ${COLORS.RESET}`);
+        if (key.trim()) {
+            config.gemini.apiKeys.push(key.trim());
         }
     } else {
-        console.log(`${COLORS.GREEN}Configuracao mantida.${COLORS.RESET}\n`);
+        config.lastProvider = 'ollama';
+        console.log(`${COLORS.YELLOW}Endpoint Ollama atual: ${COLORS.RESET}${config.ollama.endpoint}`);
+        const ans = await promptUser(`${COLORS.YELLOW}O endpoint esta correto? (Y/n): ${COLORS.RESET}`);
+
+        if (ans.toLowerCase() === 'n') {
+            const newEndpoint = await promptUser(`${COLORS.CYAN}Digite o novo endpoint (ex: http://192.168.1.100:11434): ${COLORS.RESET}`);
+            if (newEndpoint.trim()) {
+                config.ollama.endpoint = newEndpoint.trim();
+            }
+        }
     }
+
+    saveConfig(config);
+    console.log(`${COLORS.GREEN}Configuracao salva em ${getConfigPath()}${COLORS.RESET}\n`);
 }
 
 async function editConfig() {
@@ -40,16 +49,29 @@ async function editConfig() {
     console.log(`${COLORS.YELLOW}  Arquivo:        ${COLORS.RESET}${getConfigPath()}`);
 
     console.log('');
-    const choice = await promptUser(`${COLORS.YELLOW}O que deseja alterar? (1=Endpoint, 2=Auto-approve, Enter=Voltar): ${COLORS.RESET}`);
+    const choice = await promptUser(`${COLORS.YELLOW}Alterar: 1=Provider, 2=Endpoint Ollama, 3=Add Gemini Key, 4=Auto-approve, Enter=Voltar: ${COLORS.RESET}`);
 
     if (choice === '1') {
+        const pChoice = await promptUser(`${COLORS.CYAN}Provider (1=Ollama, 2=Gemini): ${COLORS.RESET}`);
+        if (pChoice === '1') config.lastProvider = 'ollama';
+        else if (pChoice === '2') config.lastProvider = 'gemini';
+        saveConfig(config);
+        console.log(`${COLORS.GREEN}Provider atualizado para: ${config.lastProvider}${COLORS.RESET}\n`);
+    } else if (choice === '2') {
         const newEndpoint = await promptUser(`${COLORS.CYAN}Novo endpoint: ${COLORS.RESET}`);
         if (newEndpoint.trim()) {
             config.ollama.endpoint = newEndpoint.trim();
             saveConfig(config);
             console.log(`${COLORS.GREEN}Endpoint atualizado para: ${config.ollama.endpoint}${COLORS.RESET}\n`);
         }
-    } else if (choice === '2') {
+    } else if (choice === '3') {
+        const key = await promptUser(`${COLORS.CYAN}Nova API Key Gemini: ${COLORS.RESET}`);
+        if (key.trim()) {
+            config.gemini.apiKeys.push(key.trim());
+            saveConfig(config);
+            console.log(`${COLORS.GREEN}Chave adicionada. Total de chaves: ${config.gemini.apiKeys.length}${COLORS.RESET}\n`);
+        }
+    } else if (choice === '4') {
         config.autoApproveMode = !config.autoApproveMode;
         saveConfig(config);
         console.log(`${COLORS.GREEN}Auto-approve agora: ${config.autoApproveMode}${COLORS.RESET}\n`);
@@ -63,14 +85,20 @@ async function main() {
         await configWizard();
     }
 
-    const client = new OllamaClient();
-    const healthy = await client.isHealthy();
+    const config = loadConfig();
 
-    if (!healthy) {
-        printError('O servidor Ollama nao esta acessivel. Inicializando em MODO OFFLINE.', null);
-        console.log(`   ${COLORS.YELLOW}Requisicoes vao falhar ate que o container Docker esteja rodando.${COLORS.RESET}\n`);
+    if (config.lastProvider === 'ollama') {
+        const client = new OllamaClient();
+        const healthy = await client.isHealthy();
+
+        if (!healthy) {
+            printError('O servidor Ollama nao esta acessivel. Inicializando em MODO OFFLINE.', null);
+            console.log(`   ${COLORS.YELLOW}Requisicoes vao falhar ate que o container Docker esteja rodando.${COLORS.RESET}\n`);
+        } else {
+            console.log(`${COLORS.GREEN}Servidor Ollama operante.${COLORS.RESET}\n`);
+        }
     } else {
-        console.log(`${COLORS.GREEN}Servidor Ollama operante.${COLORS.RESET}\n`);
+        console.log(`${COLORS.GREEN}Provedor Cloud Gemini alocado (Keys registradas: ${config.gemini.apiKeys.length}).${COLORS.RESET}\n`);
     }
 
     const cwd = process.cwd();
@@ -80,6 +108,13 @@ async function main() {
     console.log(projectState.summary);
 
     const engine = new PipelineEngine();
+
+    onInterrupt(() => {
+        if (!engine.abortCurrentStream()) {
+            console.log(`\n${COLORS.MAGENTA}Sessao Toug encerrada (Ctrl+C).${COLORS.RESET}`);
+            process.exit(0);
+        }
+    });
 
     const previousSession = loadLatestSession(cwd);
     let sessionRestored = false;
@@ -154,7 +189,20 @@ async function main() {
 }
 
 main().catch(e => {
-    printError('Erro fatal no ambiente Node.', e);
+    printError('Erro fatal no ambiente Node.', e.message || String(e));
+    try {
+        const cwd = process.cwd();
+        const logPath = path.join(cwd, 'toug-fatal-log.txt');
+        const logData = `TOUG CLI FATAL ERROR LOG\nDate: ${new Date().toISOString()}\n\nError:\n${e.stack || e}\n`;
+        fs.writeFileSync(logPath, logData, 'utf8');
+
+        if (process.platform === 'win32') {
+            execSync(`start "" "${logPath}"`);
+        }
+    } catch (logErr) {
+        console.error('Falha ao gravar erro letal no disco.', logErr);
+    }
+
     closeChat();
     process.exit(1);
 });

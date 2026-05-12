@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.closeChat = exports.printError = exports.printHeader = exports.promptUser = exports.COLORS = void 0;
+exports.onInterrupt = exports.closeChat = exports.printError = exports.printHeader = exports.promptUser = exports.COLORS = void 0;
 const readline = __importStar(require("readline/promises"));
 const rl = readline.createInterface({
     input: process.stdin,
@@ -69,3 +69,7 @@ const closeChat = () => {
     rl.close();
 };
 exports.closeChat = closeChat;
+const onInterrupt = (cb) => {
+    rl.on('SIGINT', cb);
+};
+exports.onInterrupt = onInterrupt;
