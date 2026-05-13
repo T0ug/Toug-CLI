@@ -36,6 +36,8 @@ Refatorar o fluxo principal do CLI para usar `selectMenu` nas selecoes interativ
 - Ajustado Gemini thinking para solicitar `thinkingConfig` com `includeThoughts: true` e `thinkingBudget: -1` quando `showThinking` estiver ativo.
 - Centralizado o fallback Gemini no `PipelineEngine`; o provider Gemini agora tenta apenas a key indicada pelo engine, evitando tentativas duplicadas e logs confusos.
 - Ajustada a ordem de fallback Gemini para trocar todos os modelos da key atual antes de trocar para a proxima API key.
+- Ajustado `src/engine/toolRunner.ts` para executar comandos no Windows via `powershell.exe`, evitando divergencia entre descricao PowerShell e execucao real via `cmd.exe`.
+- Atualizadas instrucoes dos agentes e descricao da ferramenta Gemini para preferir comandos PowerShell nativos (`Get-ChildItem`, `Test-Path`, `Select-String`, `Get-Content`) em vez de comandos Unix como `ls`, `grep` e `cat`.
 - Atualizado `src/engine/pipelineEngine.ts` para migrar aprovacoes de `run_command` e `write_file` para `selectMenu`.
 
 ## Artefatos Gerados
@@ -44,7 +46,9 @@ Refatorar o fluxo principal do CLI para usar `selectMenu` nas selecoes interativ
 - `src/index.ts`
 - `src/data/sessionManager.ts`
 - `src/engine/pipelineEngine.ts`
+- `src/engine/toolRunner.ts`
 - `src/providers/geminiProvider.ts`
+- `src/agents/agentLoader.ts`
 - `docs/task_026.md`
 - `docs/handoff.md`
 - `docs/project_status.md`
@@ -60,6 +64,7 @@ Refatorar o fluxo principal do CLI para usar `selectMenu` nas selecoes interativ
 - `npm run build` executado novamente com sucesso apos centralizar o fallback Gemini no `PipelineEngine`.
 - `npm run build` executado novamente com sucesso apos ajustar a ordem de fallback para modelo antes de key.
 - `npm run build` executado novamente com sucesso apos ajuste de redesenho do `selectMenu` por contagem de linhas, preservando informacoes acima sem acumular menus.
+- `npx tsc --noEmit` executado com sucesso apos alinhar ToolRunner/PowerShell e instrucoes anti-comandos Unix. `npm run build` sem permissao elevada falhou por EPERM ao escrever em `dist/` dentro de `Program Files`; execucao elevada nao foi autorizada pelo ambiente.
 - Busca estatica executada em `src/index.ts` e `src/engine/pipelineEngine.ts` nao encontrou prompts legados:
   - `Y/n`
   - `1=`

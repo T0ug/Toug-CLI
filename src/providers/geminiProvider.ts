@@ -17,13 +17,13 @@ export class GeminiProvider implements AIProvider {
         return [
             {
                 name: 'run_command',
-                description: 'Executa um comando no terminal do Windows.',
+                description: 'Executa um comando no PowerShell do Windows. Use cmdlets PowerShell nativos, como Get-ChildItem/Test-Path/Select-String/Get-Content, em vez de comandos Unix como ls/grep/cat.',
                 parameters: {
                     type: Type.OBJECT,
                     properties: {
                         command: {
                             type: Type.STRING,
-                            description: 'Comando a ser executado no powershell'
+                            description: 'Comando PowerShell a ser executado'
                         }
                     },
                     required: ['command']

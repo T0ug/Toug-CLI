@@ -78,9 +78,11 @@ export class PipelineEngine {
 
     public getActiveConfig() {
         const role = this.getRoleForState(this.state);
-        const provider = loadConfig().lastProvider;
+        const config = loadConfig();
+        const provider = config.lastProvider;
         const model = this.getModelForRole(role);
-        return { provider, role, model };
+        const keyAlias = provider === 'gemini' && config.gemini?.apiKeys?.length > 0 ? config.gemini.apiKeys[0].alias : undefined;
+        return { provider, role, model, keyAlias };
     }
 
     public async *processInput(userInput: string): AsyncGenerator<string, void, unknown> {
@@ -134,7 +136,7 @@ export class PipelineEngine {
                                 apiKeyIndex: currentKeyIndex
                             }
                         });
-                        
+
                         assistantResponse = '';
                         let tagBuffer = '';
                         let insideTag = false;
@@ -234,12 +236,12 @@ export class PipelineEngine {
 
                         const errMsg = error.message.toLowerCase();
                         const isExhausted = errMsg.includes('429') || errMsg.includes('503') || errMsg.includes('quota') || errMsg.includes('exhausted') || errMsg.includes('resource');
-                        
+
                         if (currentProvider === 'gemini') {
                             if (isExhausted) {
                                 const keyAlias = config.gemini.apiKeys[currentKeyIndex]?.alias || `Chave ${currentKeyIndex}`;
                                 yield `\n${COLORS.YELLOW}[Fallback] Limite atingido no Gemini (Model: ${model}, Key: ${keyAlias}). Tentando proxima rota...${COLORS.RESET}\n`;
-                                
+
                                 currentModelIndex++;
 
                                 if (currentModelIndex >= modelsToTry.length) {
@@ -261,11 +263,11 @@ export class PipelineEngine {
                         } else if (currentProvider === 'ollama') {
                             yield `\n${COLORS.YELLOW}[Fallback] Erro no Ollama (Model: ${model}). Tentando proximo modelo...${COLORS.RESET}\n`;
                             currentModelIndex++;
-                            
+
                             if (currentModelIndex >= modelsToTry.length) {
                                 throw new Error(`Ollama falhou em todos os modelos de fallback. Ultimo erro: ${error.message}`);
                             }
-                            
+
                             const { OllamaClient } = await import('./ollamaClient');
                             const client = new OllamaClient();
                             yield `\n${COLORS.YELLOW}[SYSTEM] Descarregando modelo ${model} da RAM para liberar espaco...${COLORS.RESET}\n`;

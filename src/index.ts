@@ -454,7 +454,7 @@ async function main() {
             const tempEngine = new PipelineEngine();
             tempEngine.transition('DISCOVERY');
             const activeTemp = tempEngine.getActiveConfig();
-            printHeader(activeTemp.role, activeTemp.model, activeTemp.provider);
+            printHeader(activeTemp.role, activeTemp.model, activeTemp.provider, activeTemp.keyAlias);
 
             try {
                 const stream = tempEngine.processInput(query);
@@ -494,7 +494,7 @@ async function main() {
         }
 
         const active = engine.getActiveConfig();
-        printHeader(active.role, active.model, active.provider);
+        printHeader(active.role, active.model, active.provider, active.keyAlias);
 
         try {
             const stream = engine.processInput(input);

@@ -10,7 +10,16 @@ FERRAMENTAS DISPONÍVEIS:
 - <run_command>comando</run_command> — Executa no terminal.
 - <read_file>caminho</read_file> — Lê um arquivo.
 - <write_file path="caminho">conteúdo completo</write_file> — Grava/sobrescreve um arquivo.
-- <transition_state>ESTADO</transition_state> — Troca para a fase correta (ESTADOS: DISCOVERY, ARCHITECT, EXECUTING, REVIEW, ORCHESTRATING).`;
+- <transition_state>ESTADO</transition_state> — Troca para a fase correta (ESTADOS: DISCOVERY, ARCHITECT, EXECUTING, REVIEW, ORCHESTRATING).
+
+COMANDOS NO WINDOWS:
+- O ambiente de execucao do Toug CLI no Windows usa PowerShell.
+- Nao use comandos Unix como ls, grep, cat, find ou rm.
+- Para listar arquivos, use Get-ChildItem ou dir.
+- Para verificar existencia, use Test-Path.
+- Para buscar texto, use Select-String.
+- Para ler arquivo, prefira a ferramenta <read_file>; se precisar de comando, use Get-Content.
+- Para apagar, mover ou criar itens, use cmdlets PowerShell explicitos como Remove-Item, Move-Item e New-Item.`;
 
 // Hardcoded core instructions for the agents derived from the .agents/ structure
 const AGENT_PROMPTS: Record<AgentRole, string> = {

@@ -1,13 +1,25 @@
 import { spawn } from 'node:child_process';
 
+const getShellCommand = (command: string): { command: string; args: string[]; shell: boolean } => {
+    if (process.platform !== 'win32') {
+        return { command, args: [], shell: true };
+    }
+
+    return {
+        command: 'powershell.exe',
+        args: ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', command],
+        shell: false
+    };
+};
+
 export const executeShellCommand = async (command: string): Promise<string> => {
     const isBackgroundCmd = /npm run dev|npm start|vite|expo start/i.test(command);
     if (isBackgroundCmd) {
         return new Promise((resolve) => {
             console.log(`\n\x1b[36m[System]\x1b[0m Iniciando servidor em background...\n`);
             
-            // Usamos shell: true para garantir que comandos complexos do npm funcionem
-            const child = spawn(command, { shell: true, stdio: 'pipe' });
+            const shellCommand = getShellCommand(command);
+            const child = spawn(shellCommand.command, shellCommand.args, { shell: shellCommand.shell, stdio: 'pipe' });
             
             child.stdout.on('data', (data) => {
                 process.stdout.write(data);
@@ -27,7 +39,8 @@ export const executeShellCommand = async (command: string): Promise<string> => {
     }
 
     return new Promise((resolve) => {
-        const child = spawn(command, { shell: true, stdio: 'inherit' });
+        const shellCommand = getShellCommand(command);
+        const child = spawn(shellCommand.command, shellCommand.args, { shell: shellCommand.shell, stdio: 'inherit' });
 
         child.on('error', (err) => {
             resolve(`[ERROR failed to execute tool command]: ${err.message}`);

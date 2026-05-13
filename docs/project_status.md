@@ -45,6 +45,7 @@ Discovery concluiu e o usuario confirmou o Understanding Lock para a Fase 14: th
 - Gemini thinking solicitado com `includeThoughts` e `thinkingBudget` automatico quando o toggle esta ativo.
 - Fallback Gemini ajustado para trocar modelo antes de trocar API key.
 - Menus interativos preservam blocos informativos acima e limpam apenas as linhas do proprio menu durante navegacao por setas.
+- ToolRunner no Windows alinhado para executar comandos via PowerShell, com instrucoes para agentes evitarem comandos Unix como `ls`, `grep` e `cat`.
 
 ### Proxima fase
 

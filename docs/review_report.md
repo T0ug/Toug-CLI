@@ -31,9 +31,12 @@ Aprovado com ressalvas.
 - `src/providers/geminiProvider.ts` deixa de fazer fallback interno entre keys; a rota de key/modelo fica centralizada no `PipelineEngine`.
 - `src/cli/selectMenu.ts` renderiza menus longos com janela paginada, reduzindo artefatos visuais por scroll.
 - `src/cli/selectMenu.ts` preserva blocos informativos acima do menu ao redesenhar, usando contagem de linhas para limpar apenas a area renderizada pelo proprio menu.
+- `src/engine/toolRunner.ts` executa comandos no Windows via `powershell.exe`, alinhando a execucao real ao contrato descrito aos agentes.
+- `src/agents/agentLoader.ts` e `src/providers/geminiProvider.ts` orientam os agentes a usar cmdlets PowerShell nativos em vez de comandos Unix como `ls`, `grep` e `cat`.
 - `src/engine/pipelineEngine.ts` migrou aprovacoes de `run_command` e `write_file` para `selectMenu`.
 - Busca estatica nao encontrou prompts legados nos fluxos-alvo: `Y/n`, `1=`, `2=`, `numero`, `Escolha uma sessao`, `Retomar?`, `Permitir?`, `Alterar:`.
 - `npm run build` executado com sucesso.
+- `npx tsc --noEmit` executado com sucesso apos correcao PowerShell/anti-`ls`; build com emissao nao foi repetido por falta de permissao elevada no ambiente.
 
 ## Analise tecnica
 

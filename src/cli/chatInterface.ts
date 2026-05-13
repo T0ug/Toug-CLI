@@ -19,9 +19,10 @@ export const promptUser = async (text: string): Promise<string> => {
     return await rl.question(`${COLORS.CYAN}${text}${COLORS.RESET}`);
 };
 
-export const printHeader = (agent: string, model: string, provider?: string) => {
+export const printHeader = (agent: string, model: string, provider?: string, keyAlias?: string) => {
     const providerLabel = provider ? `${provider.toUpperCase()} / ` : '';
-    process.stdout.write(`\n${COLORS.GREEN}>> [${providerLabel}${agent.toUpperCase()} @ ${model}]${COLORS.RESET}\n`);
+    const keyLabel = keyAlias ? ` (${keyAlias})` : '';
+    process.stdout.write(`\n${COLORS.GREEN}>> [${providerLabel}${agent.toUpperCase()} @ ${model}${keyLabel}]${COLORS.RESET}\n`);
 };
 
 export const printError = (msg: string, err: any) => {
