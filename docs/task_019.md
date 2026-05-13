@@ -83,5 +83,5 @@ Atualmente, se o `GeminiProvider` encontra uma falha de API (como cota esgotada)
 
 - [ ] Nao iniciada
 - [ ] Em andamento
-- [ ] Concluida
+- [x] Concluida
 - [ ] Bloqueada

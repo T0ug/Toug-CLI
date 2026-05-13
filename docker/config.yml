@@ -1,0 +1,7 @@
+tunnel: f01e1574-d27e-420e-9f8e-5091dc7d2125
+credentials-file: /etc/cloudflared/f01e1574-d27e-420e-9f8e-5091dc7d2125.json
+
+ingress:
+  - hostname: toug.space
+    service: http://ollama:11434
+  - service: http_status:404

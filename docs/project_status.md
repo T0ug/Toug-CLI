@@ -42,7 +42,7 @@ Discovery concluiu e o usuario confirmou o Understanding Lock para a Fase 13: fa
 
 ### Proxima fase
 
-- Proxima acao: Executor inicia a task_019.md (PipelineEngine Fallback)
+- Proxima acao: Executor inicia a task_020.md (Menções @file)
 - Skill indicada: Nenhuma
 - Status: **TASK DEFINIDA, AGUARDANDO EXECUTOR**.
 

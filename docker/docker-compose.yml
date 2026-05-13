@@ -24,11 +24,11 @@ services:
   cloudflared:
     image: cloudflare/cloudflared:latest
     container_name: toug_cloudflared
-    command: tunnel --no-autoupdate run --token ${eyJ6b25lSUQiOiIzNmU1NGI3ODk2M2YzMDY3OWE1MTA2Y2Y2MzhlMTVjNSIsImFj
-Y291bnRJRCI6IjdlMTUyMGM4YTVlZWNhOTM5MDFiZjVkMTg3NTU0NGYwIiwiYXBp
-VG9rZW4iOiJjZnV0X1FBaVRtZDdUbzRUSVBFenFRWTJwMDMxQ2ZzY01vckx6VDhR
-U04wTU9lZGVlN2IyYSJ9}
+    command: tunnel --config /etc/cloudflared/config.yml run
     restart: unless-stopped
+    volumes:
+      - ./config.yml:/etc/cloudflared/config.yml
+      - ./f01e1574-d27e-420e-9f8e-5091dc7d2125.json:/etc/cloudflared/f01e1574-d27e-420e-9f8e-5091dc7d2125.json
     depends_on:
       - ollama
 
