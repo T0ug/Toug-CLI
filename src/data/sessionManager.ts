@@ -12,6 +12,9 @@ export interface SessionData {
     savedAt: string;
 }
 
+const activeSessionFiles = new Map<string, string>();
+const SESSION_DATA_FILE = 'session.json';
+
 const getSessionsDir = (): string => {
     const dir = path.join(os.homedir(), '.toug-cli', 'sessions');
     if (!fs.existsSync(dir)) {
@@ -31,15 +34,104 @@ const cwdHash = (cwd: string): string => {
     return Math.abs(hash).toString(36);
 };
 
-export const saveSession = (history: Message[], state: PipelineState, cwd: string): string => {
+const getProjectSessionsDir = (cwd: string): string => {
     const dir = getSessionsDir();
-    const now = new Date();
+    const projectDir = path.join(dir, cwdHash(cwd));
+    if (!fs.existsSync(projectDir)) {
+        fs.mkdirSync(projectDir, { recursive: true });
+    }
+    return projectDir;
+};
+
+const createSessionPath = (cwd: string, now: Date): { id: string, filePath: string } => {
     const id = `session_${now.toISOString().replace(/[:.]/g, '-').slice(0, 19)}`;
-    const filename = `${cwdHash(cwd)}_${id}.json`;
-    const filePath = path.join(dir, filename);
+    const sessionDir = path.join(getProjectSessionsDir(cwd), id);
+    fs.mkdirSync(sessionDir, { recursive: true });
+    return { id, filePath: path.join(sessionDir, SESSION_DATA_FILE) };
+};
+
+const getSessionRefFromPath = (cwd: string, filePath: string): string => {
+    const projectHash = cwdHash(cwd);
+    const projectDir = path.join(getSessionsDir(), projectHash);
+
+    if (filePath.startsWith(projectDir)) {
+        return path.relative(getSessionsDir(), path.dirname(filePath));
+    }
+
+    return path.basename(filePath);
+};
+
+const getSessionFilePath = (cwd: string, sessionRef: string): string | null => {
+    const dir = getSessionsDir();
+    const projectHash = cwdHash(cwd);
+    const prefix = projectHash + '_';
+
+    if (sessionRef.includes('/') || sessionRef.includes('\\')) {
+        const normalizedRef = path.normalize(sessionRef);
+        const filePath = path.join(dir, normalizedRef, SESSION_DATA_FILE);
+        const projectDir = path.join(dir, projectHash);
+        if (!filePath.startsWith(projectDir)) return null;
+        return filePath;
+    }
+
+    if (!sessionRef.startsWith(prefix)) return null;
+    return path.join(dir, sessionRef);
+};
+
+const migrateLegacySessions = (cwd: string): void => {
+    const dir = getSessionsDir();
+    const projectHash = cwdHash(cwd);
+    const prefix = projectHash + '_';
+
+    try {
+        const files = fs.readdirSync(dir)
+            .filter(f => f.startsWith(prefix) && f.endsWith('.json'));
+
+        for (const file of files) {
+            const id = file.slice(prefix.length, -'.json'.length);
+            const sessionDir = path.join(getProjectSessionsDir(cwd), id);
+            const from = path.join(dir, file);
+            const to = path.join(sessionDir, SESSION_DATA_FILE);
+
+            if (fs.existsSync(to)) continue;
+            fs.mkdirSync(sessionDir, { recursive: true });
+            fs.renameSync(from, to);
+        }
+    } catch {
+        // Legacy migration is best-effort; loading still supports flat files.
+    }
+};
+
+export const startNewSession = (cwd: string): void => {
+    activeSessionFiles.delete(cwd);
+};
+
+export const saveSession = (history: Message[], state: PipelineState, cwd: string): string => {
+    migrateLegacySessions(cwd);
+    const now = new Date();
+    let filePath = activeSessionFiles.get(cwd);
+    let id: string | null = null;
+
+    if (filePath && fs.existsSync(filePath)) {
+        try {
+            const existing = JSON.parse(fs.readFileSync(filePath, 'utf8')) as Partial<SessionData>;
+            id = typeof existing.id === 'string' ? existing.id : null;
+        } catch {
+            id = null;
+        }
+    } else {
+        filePath = undefined;
+    }
+
+    if (!filePath) {
+        const created = createSessionPath(cwd, now);
+        id = created.id;
+        filePath = created.filePath;
+        activeSessionFiles.set(cwd, filePath);
+    }
 
     const data: SessionData = {
-        id,
+        id: id ?? createSessionPath(cwd, now).id,
         cwd,
         state,
         history,
@@ -47,23 +139,22 @@ export const saveSession = (history: Message[], state: PipelineState, cwd: strin
     };
 
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+    activeSessionFiles.set(cwd, filePath);
     return filePath;
 };
 
 export const loadLatestSession = (cwd: string): SessionData | null => {
-    const dir = getSessionsDir();
-    const prefix = cwdHash(cwd) + '_';
+    migrateLegacySessions(cwd);
 
     try {
-        const files = fs.readdirSync(dir)
-            .filter(f => f.startsWith(prefix) && f.endsWith('.json'))
-            .sort()
-            .reverse();
+        const sessions = listSessions(cwd);
 
-        if (files.length === 0) return null;
+        if (sessions.length === 0) return null;
 
-        const filePath = path.join(dir, files[0]);
+        const filePath = getSessionFilePath(cwd, sessions[0].filename);
+        if (!filePath) return null;
         const content = fs.readFileSync(filePath, 'utf8');
+        activeSessionFiles.set(cwd, filePath);
         return JSON.parse(content) as SessionData;
     } catch {
         return null;
@@ -72,22 +163,29 @@ export const loadLatestSession = (cwd: string): SessionData | null => {
 
 export const listSessions = (cwd: string): { filename: string, savedAt: Date, count: number }[] => {
     const dir = getSessionsDir();
-    const prefix = cwdHash(cwd) + '_';
+    const projectHash = cwdHash(cwd);
+    const prefix = projectHash + '_';
     const result: { filename: string, savedAt: Date, count: number }[] = [];
 
     try {
-        const files = fs.readdirSync(dir)
-            .filter(f => f.startsWith(prefix) && f.endsWith('.json'))
-            .sort()
-            .reverse();
+        migrateLegacySessions(cwd);
 
-        for (const file of files) {
+        const projectDir = getProjectSessionsDir(cwd);
+        const sessionDirs = fs.readdirSync(projectDir, { withFileTypes: true })
+            .filter(entry => entry.isDirectory())
+            .map(entry => path.join(projectDir, entry.name, SESSION_DATA_FILE))
+            .filter(filePath => fs.existsSync(filePath));
+
+        const legacyFiles = fs.readdirSync(dir)
+            .filter(f => f.startsWith(prefix) && f.endsWith('.json'))
+            .map(file => path.join(dir, file));
+
+        for (const filePath of [...sessionDirs, ...legacyFiles]) {
             try {
-                const filePath = path.join(dir, file);
                 const content = fs.readFileSync(filePath, 'utf8');
                 const data = JSON.parse(content) as SessionData;
                 result.push({
-                    filename: file,
+                    filename: getSessionRefFromPath(cwd, filePath),
                     savedAt: new Date(data.savedAt),
                     count: data.history.length
                 });
@@ -99,18 +197,18 @@ export const listSessions = (cwd: string): { filename: string, savedAt: Date, co
         // ignore
     }
 
-    return result;
+    return result.sort((a, b) => b.savedAt.getTime() - a.savedAt.getTime());
 };
 
 export const loadSessionFile = (cwd: string, filename: string): SessionData | null => {
-    const dir = getSessionsDir();
-    const prefix = cwdHash(cwd) + '_';
-    if (!filename.startsWith(prefix)) return null;
+    migrateLegacySessions(cwd);
 
     try {
-        const filePath = path.join(dir, filename);
+        const filePath = getSessionFilePath(cwd, filename);
+        if (!filePath) return null;
         if (!fs.existsSync(filePath)) return null;
         const content = fs.readFileSync(filePath, 'utf8');
+        activeSessionFiles.set(cwd, filePath);
         return JSON.parse(content) as SessionData;
     } catch {
         return null;
@@ -118,14 +216,20 @@ export const loadSessionFile = (cwd: string, filename: string): SessionData | nu
 };
 
 export const deleteSession = (cwd: string, filename: string): boolean => {
-    const dir = getSessionsDir();
-    const prefix = cwdHash(cwd) + '_';
-    if (!filename.startsWith(prefix)) return false;
+    migrateLegacySessions(cwd);
 
     try {
-        const filePath = path.join(dir, filename);
+        const filePath = getSessionFilePath(cwd, filename);
+        if (!filePath) return false;
         if (fs.existsSync(filePath)) {
-            fs.unlinkSync(filePath);
+            if (path.basename(filePath) === SESSION_DATA_FILE) {
+                fs.rmSync(path.dirname(filePath), { recursive: true, force: true });
+            } else {
+                fs.unlinkSync(filePath);
+            }
+            if (activeSessionFiles.get(cwd) === filePath) {
+                activeSessionFiles.delete(cwd);
+            }
             return true;
         }
         return false;

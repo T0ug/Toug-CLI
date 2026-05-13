@@ -2,7 +2,8 @@ import { PipelineState, AgentRole } from '../agents/types';
 import { loadAgent } from '../agents/agentLoader';
 import { Message } from './ollamaClient';
 import { loadConfig } from '../data/configManager';
-import { promptUser, COLORS } from '../cli/chatInterface';
+import { COLORS } from '../cli/chatInterface';
+import { selectMenu } from '../cli/selectMenu';
 import { executeShellCommand } from './toolRunner';
 import { readArtifact, writeArtifact } from './artifactManager';
 import { getModelsForProviderRole } from '../agents/modelRegistry';
@@ -67,6 +68,10 @@ export class PipelineEngine {
         this.history = history;
     }
 
+    public clearHistory(): void {
+        this.history = [];
+    }
+
     public setState(state: PipelineState): void {
         this.state = state;
     }
@@ -121,6 +126,7 @@ export class PipelineEngine {
                             model,
                             messages,
                             tools: [],
+                            abortSignal: this.currentAbortController.signal,
                             metadata: {
                                 cwd: process.cwd(),
                                 state: this.state,
@@ -141,6 +147,11 @@ export class PipelineEngine {
                             }
 
                             if (event.type === 'error') {
+                                if (this.currentAbortController?.signal.aborted) {
+                                    yield `\n${COLORS.YELLOW}[SYSTEM] Geracao interrompida pelo usuario.${COLORS.RESET}\n`;
+                                    keepRunning = false;
+                                    break;
+                                }
                                 throw new Error(event.error.message);
                             }
 
@@ -215,6 +226,12 @@ export class PipelineEngine {
                         }
 
                     } catch (error: any) {
+                        if (this.currentAbortController?.signal.aborted || error?.name === 'AbortError') {
+                            yield `\n${COLORS.YELLOW}[SYSTEM] Geracao interrompida pelo usuario.${COLORS.RESET}\n`;
+                            keepRunning = false;
+                            break;
+                        }
+
                         const errMsg = error.message.toLowerCase();
                         const isExhausted = errMsg.includes('429') || errMsg.includes('503') || errMsg.includes('quota') || errMsg.includes('exhausted') || errMsg.includes('resource');
                         
@@ -223,14 +240,14 @@ export class PipelineEngine {
                                 const keyAlias = config.gemini.apiKeys[currentKeyIndex]?.alias || `Chave ${currentKeyIndex}`;
                                 yield `\n${COLORS.YELLOW}[Fallback] Limite atingido no Gemini (Model: ${model}, Key: ${keyAlias}). Tentando proxima rota...${COLORS.RESET}\n`;
                                 
-                                const maxKeys = config.gemini.apiKeys.length || 1;
-                                currentKeyIndex++;
-                                
-                                if (currentKeyIndex >= maxKeys) {
-                                    currentKeyIndex = 0;
-                                    currentModelIndex++;
-                                    
-                                    if (currentModelIndex >= modelsToTry.length) {
+                                currentModelIndex++;
+
+                                if (currentModelIndex >= modelsToTry.length) {
+                                    currentModelIndex = 0;
+                                    currentKeyIndex++;
+
+                                    const maxKeys = config.gemini.apiKeys.length || 1;
+                                    if (currentKeyIndex >= maxKeys) {
                                         yield `\n${COLORS.YELLOW}[Fallback] Todas as rotas Gemini esgotadas. Trocando para Ollama local...${COLORS.RESET}\n`;
                                         currentProvider = 'ollama';
                                         modelsToTry = getModelsForProviderRole('ollama', role);
@@ -272,8 +289,12 @@ export class PipelineEngine {
                     const command = cmdMatch[1].trim();
                     let approved = config.autoApproveMode;
                     if (!approved) {
-                        const ans = await promptUser(`\n${COLORS.YELLOW}[TOOL] Executar comando: '${command}'. Permitir? Y/n: ${COLORS.RESET}`);
-                        if (ans.toLowerCase() !== 'n') approved = true;
+                        yield `\n${COLORS.YELLOW}[TOOL] Executar comando: '${command}'${COLORS.RESET}\n`;
+                        const ans = await selectMenu([
+                            { label: 'Sim', value: 'yes' },
+                            { label: 'Nao', value: 'no' }
+                        ], 'Permitir execucao?');
+                        approved = ans === 'yes';
                     }
                     if (approved) {
                         yield `\n${COLORS.YELLOW}[Executando...]${COLORS.RESET}\n`;
@@ -305,8 +326,11 @@ export class PipelineEngine {
                     if (!approved) {
                         const preview = fileContent.length > 200 ? fileContent.substring(0, 200) + '...' : fileContent;
                         yield `\n${COLORS.YELLOW}[TOOL] Gravar arquivo: '${filePath}'\nPreview: ${preview}${COLORS.RESET}\n`;
-                        const ans = await promptUser(`${COLORS.YELLOW}Permitir gravação? Y/n: ${COLORS.RESET}`);
-                        if (ans.toLowerCase() !== 'n') approved = true;
+                        const ans = await selectMenu([
+                            { label: 'Sim', value: 'yes' },
+                            { label: 'Nao', value: 'no' }
+                        ], 'Permitir gravacao?');
+                        approved = ans === 'yes';
                     }
                     if (approved) {
                         const cwd = process.cwd();

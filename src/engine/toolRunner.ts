@@ -1,7 +1,4 @@
-import { exec, spawn } from 'node:child_process';
-import util from 'node:util';
-
-const execAsync = util.promisify(exec);
+import { spawn } from 'node:child_process';
 
 export const executeShellCommand = async (command: string): Promise<string> => {
     const isBackgroundCmd = /npm run dev|npm start|vite|expo start/i.test(command);
@@ -29,26 +26,20 @@ export const executeShellCommand = async (command: string): Promise<string> => {
         });
     }
 
-    try {
-        const { stdout, stderr } = await execAsync(command, { maxBuffer: 2 * 1024 * 1024 }); // 2MB buffer para prevenir max buffer spawn logs
-        let result = stdout.trim();
+    return new Promise((resolve) => {
+        const child = spawn(command, { shell: true, stdio: 'inherit' });
 
-        if (stderr.trim()) {
-            result += `\n[STDERR]:\n${stderr.trim()}`;
-        }
+        child.on('error', (err) => {
+            resolve(`[ERROR failed to execute tool command]: ${err.message}`);
+        });
 
-        result = result.trim() || "Process exited successfully with no string output.";
+        child.on('close', (code) => {
+            if (code === 0) {
+                resolve('Comando executado com sucesso.');
+                return;
+            }
 
-        if (result.length > 2000) {
-            result = result.substring(0, 1997) + '...';
-        }
-
-        return result;
-    } catch (e: any) {
-        let errOutput = e.stderr || e.stdout || e.message || String(e);
-        if (typeof errOutput === 'string' && errOutput.length > 2000) {
-            errOutput = errOutput.substring(0, 1997) + '...';
-        }
-        return `[ERROR failed to execute tool command]: ${errOutput}`;
-    }
+            resolve(`Comando finalizado com codigo ${code}.`);
+        });
+    });
 };

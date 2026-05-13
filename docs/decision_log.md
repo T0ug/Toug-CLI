@@ -1,5 +1,4 @@
 # Decision Log - Toug CLI
-
 | # | Data | Decisao | Justificativa | Agent |
 |---|------|---------|---------------|-------|
 | 001 | 2026-05-11 | Stack: Node.js / TypeScript | Escala futura para IDE com interface grafica; bom para CLI no MVP | Discovery |
@@ -68,4 +67,20 @@
 | 064 | 2026-05-13 | Thinking não entra no histórico | Economiza tokens, raciocínio é efêmero e serve apenas para visualização | Architect |
 | 065 | 2026-05-13 | Raw mode nativo sem dependência externa | selectMenu simples o suficiente para implementar com process.stdin.setRawMode | Architect |
 | 066 | 2026-05-13 | spawn com stdio inherit perde captura de output | Trade-off aceito: interatividade do usuário vale mais que captura de texto para devolver ao modelo | Architect |
-
+| 067 | 2026-05-13 | Estado documental da Task 024 realinhado | `tasks.md` foi atualizado para refletir `project_status.md`, `handoff.md` e `task_024.md`: Task 024 implementada pelo Executor e aguardando validação do Reviewer | Orchestrator |
+| 068 | 2026-05-13 | Entrega da Task 024 aprovada com ressalvas | Reviewer validou evidencias em providers, OllamaClient e PipelineEngine; build compilou apos restaurar dependencias. Teste ao vivo com Ollama/Gemini nao foi executado neste ambiente | Reviewer |
+| 069 | 2026-05-13 | Entrega da Task 025 aprovada com ressalvas | Reviewer validou ToolRunner com spawn stdio inherit, propagacao de abortSignal e build; testes manuais reais de Ctrl+C e Read-Host ficaram pendentes para ambiente interativo | Reviewer |
+| 070 | 2026-05-13 | Ctrl+C da Task 025 validado manualmente | Usuario atestou em ambiente interativo que Ctrl+C durante streaming esta funcionando; ressalva restante fica restrita ao teste real de Read-Host | Reviewer |
+| 071 | 2026-05-13 | Entrega da Task 026 aprovada com ressalvas e Fase 14 concluida | Reviewer validou menu principal, migracao de selecoes para selectMenu, fluxo de API keys, aprovacoes de ferramentas e build; testes manuais finais de UX interativa ficam pendentes | Reviewer |
+| 072 | 2026-05-13 | Corrigido encerramento imediato do selectMenu no PowerShell | Teste manual mostrou que o menu renderizava e o processo encerrava; `selectMenu.ts` passou a chamar `process.stdin.resume()` apos pausar o readline e ativar raw mode | Executor |
+| 073 | 2026-05-13 | Corrigida renderizacao de listas longas em sessoes | Teste manual mostrou sobreposicao visual em `/sessoes`; `selectMenu.ts` passou a paginar menus longos e `/sessoes` passou a selecionar sessao antes da acao carregar/apagar | Executor |
+| 074 | 2026-05-13 | Sessao logica passa a ser arquivo ativo da conversa | Teste manual mostrou multiplas entradas com segundos de diferenca; salvamentos agora atualizam o arquivo ativo e `/sessoes` pagina 5 entradas por vez com total e pagina atual | Executor |
+| 075 | 2026-05-13 | Persistencia de sessoes passa a usar pastas | Para tornar claro o que conta como sessao no disco, cada sessao passa a viver em `<hash-do-projeto>/<session_id>/session.json`, com migracao best-effort dos JSON legados | Executor |
+| 076 | 2026-05-13 | Menu principal acessivel via `/menu` | Usuario solicitou retorno ao menu sem encerrar o CLI; comando volta para o menu principal e nova conversa limpa o historico atual | Executor |
+| 077 | 2026-05-13 | Ordem das API Keys Gemini e a prioridade de fallback | Gerenciamento de keys no `/config` passa a permitir renomear, apagar e mover keys; a ordem do array `gemini.apiKeys` define a prioridade usada no fallback | Executor |
+| 078 | 2026-05-13 | Gemini thinking depende de partes `thought` no stream | O CLI solicita `includeThoughts` e `thinkingBudget: -1`, mas a exibicao so ocorre se Gemini retornar partes marcadas como pensamento | Executor |
+| 079 | 2026-05-13 | Fallback Gemini centralizado no PipelineEngine | Provider Gemini deixa de tentar keys internamente para que a ordem modelo -> key -> Ollama seja controlada e exibida por uma unica camada | Executor |
+| 080 | 2026-05-13 | Fallback Gemini troca modelo antes de API key | Usuario confirmou preferencia por esgotar os modelos da key atual antes de trocar para a proxima key, alinhando o codigo a decisao 042 | Executor |
+| 081 | 2026-05-13 | Menus preservam blocos informativos ao redesenhar | Navegacao por setas limpava informacoes acima ou acumulava menus; `selectMenu` agora limpa apenas as linhas que ele proprio renderizou | Executor |
+| 082 | 2026-05-13 | Handoff da Task 026 realinhado apos validacao | `project_status.md` e `review_report.md` ja registravam Task 026 aprovada com ressalvas; handoff foi atualizado para apontar Orchestrator e validacao manual final como proxima acao | Orchestrator |
+| 083 | 2026-05-13 | Validacao manual final da Fase 14 atestada | Usuario confirmou que os testes manuais de UX interativa, sessoes, config, menu, API keys e thinking foram validados; pendencias restantes passam a ser push/publicacao | Orchestrator |

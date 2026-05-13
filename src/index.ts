@@ -6,28 +6,166 @@ import { PipelineEngine } from './engine/pipelineEngine';
 import { OllamaClient } from './engine/ollamaClient';
 import { detectProjectState } from './engine/projectDetector';
 import { loadConfig, saveConfig, isFirstRun, getConfigPath } from './data/configManager';
-import { saveSession, loadLatestSession, compressHistory, listSessions, loadSessionFile, deleteSession } from './data/sessionManager';
+import { saveSession, compressHistory, listSessions, loadSessionFile, deleteSession, startNewSession } from './data/sessionManager';
 import { promptUser, printHeader, printError, closeChat, COLORS, onInterrupt } from './cli/chatInterface';
+import { selectMenu } from './cli/selectMenu';
 import { readArtifact } from './engine/artifactManager';
+
+const CANCEL = '__cancel__';
+
+async function chooseBoolean(title: string, currentValue?: boolean): Promise<boolean | null> {
+    const current = typeof currentValue === 'boolean' ? ` atual: ${currentValue ? 'Sim' : 'Nao'}` : '';
+    const choice = await selectMenu([
+        { label: 'Sim', value: 'yes' },
+        { label: 'Nao', value: 'no' },
+        { label: 'Voltar', value: CANCEL }
+    ], `${title}${current}`);
+
+    if (choice === CANCEL) return null;
+    return choice === 'yes';
+}
+
+async function addGeminiKeys(config: ReturnType<typeof loadConfig>): Promise<void> {
+    while (true) {
+        const key = await promptUser(`${COLORS.CYAN}API Key Gemini (ENTER para voltar): ${COLORS.RESET}`);
+        if (!key.trim()) return;
+
+        const aliasInput = await promptUser(`${COLORS.CYAN}Apelido da chave ${COLORS.DIM}(Enter para nao incluir apelido a chave API)${COLORS.RESET}: `);
+        const alias = aliasInput.trim() || `Key_${config.gemini.apiKeys.length + 1}`;
+        config.gemini.apiKeys.push({ key: key.trim(), alias });
+        saveConfig(config);
+        console.log(`${COLORS.GREEN}Chave adicionada como ${alias}. Total de chaves: ${config.gemini.apiKeys.length}${COLORS.RESET}\n`);
+
+        const next = await selectMenu([
+            { label: 'Adicionar outra', value: 'add' },
+            { label: 'Voltar', value: 'back' }
+        ], 'API Keys Gemini');
+
+        if (next !== 'add') return;
+    }
+}
+
+async function manageGeminiKeys(config: ReturnType<typeof loadConfig>): Promise<void> {
+    while (true) {
+        const keys = config.gemini.apiKeys;
+
+        if (keys.length === 0) {
+            console.log(`\n${COLORS.YELLOW}Nenhuma API Key Gemini cadastrada.${COLORS.RESET}\n`);
+            const choice = await selectMenu([
+                { label: 'Adicionar API Key', value: 'add' },
+                { label: 'Voltar', value: 'back' }
+            ], 'API Keys Gemini');
+
+            if (choice === 'add') {
+                await addGeminiKeys(config);
+            } else {
+                return;
+            }
+            continue;
+        }
+
+        console.log(`\n${COLORS.CYAN}Prioridade atual das API Keys Gemini${COLORS.RESET}`);
+        keys.forEach((key, index) => {
+            console.log(`${COLORS.YELLOW}  ${index + 1}. ${COLORS.RESET}${key.alias}`);
+        });
+
+        const options = keys.map((key, index) => ({
+            label: `${index + 1}/${keys.length} - ${key.alias}`,
+            value: `${index}`
+        }));
+        options.push({ label: 'Adicionar API Key', value: 'add' });
+        options.push({ label: 'Voltar', value: 'back' });
+
+        const choice = await selectMenu(options, 'Gerenciar API Keys Gemini');
+        if (choice === 'back' || choice === CANCEL) return;
+        if (choice === 'add') {
+            await addGeminiKeys(config);
+            continue;
+        }
+
+        const index = Number(choice);
+        const selected = keys[index];
+        if (!selected) {
+            console.log(`${COLORS.RED}API Key invalida.${COLORS.RESET}`);
+            continue;
+        }
+
+        const actionOptions = [
+            { label: 'Renomear apelido', value: 'rename' },
+            { label: 'Mover prioridade para cima', value: 'up' },
+            { label: 'Mover prioridade para baixo', value: 'down' },
+            { label: 'Apagar API Key', value: 'delete' },
+            { label: 'Voltar', value: 'back' }
+        ];
+
+        const action = await selectMenu(actionOptions, `API Key ${index + 1}/${keys.length} - ${selected.alias}`);
+        if (action === 'back' || action === CANCEL) continue;
+
+        if (action === 'rename') {
+            const newAlias = await promptUser(`${COLORS.CYAN}Novo apelido para ${selected.alias}: ${COLORS.RESET}`);
+            if (newAlias.trim()) {
+                selected.alias = newAlias.trim();
+                saveConfig(config);
+                console.log(`${COLORS.GREEN}Apelido atualizado.${COLORS.RESET}\n`);
+            }
+            continue;
+        }
+
+        if (action === 'up') {
+            if (index === 0) {
+                console.log(`${COLORS.YELLOW}Esta key ja esta na primeira prioridade.${COLORS.RESET}\n`);
+                continue;
+            }
+            [keys[index - 1], keys[index]] = [keys[index], keys[index - 1]];
+            saveConfig(config);
+            console.log(`${COLORS.GREEN}Prioridade atualizada.${COLORS.RESET}\n`);
+            continue;
+        }
+
+        if (action === 'down') {
+            if (index === keys.length - 1) {
+                console.log(`${COLORS.YELLOW}Esta key ja esta na ultima prioridade.${COLORS.RESET}\n`);
+                continue;
+            }
+            [keys[index], keys[index + 1]] = [keys[index + 1], keys[index]];
+            saveConfig(config);
+            console.log(`${COLORS.GREEN}Prioridade atualizada.${COLORS.RESET}\n`);
+            continue;
+        }
+
+        if (action === 'delete') {
+            const confirm = await selectMenu([
+                { label: 'Apagar', value: 'yes' },
+                { label: 'Cancelar', value: 'no' }
+            ], `Apagar ${selected.alias}?`);
+
+            if (confirm === 'yes') {
+                keys.splice(index, 1);
+                saveConfig(config);
+                console.log(`${COLORS.GREEN}API Key apagada.${COLORS.RESET}\n`);
+            }
+        }
+    }
+}
 
 async function configWizard() {
     console.log(`\n${COLORS.CYAN}Configuracao Inicial do Toug CLI${COLORS.RESET}\n`);
 
     const config = loadConfig();
+    const providerChoice = await selectMenu([
+        { label: 'Ollama local', value: 'ollama' },
+        { label: 'Gemini cloud', value: 'gemini' }
+    ], 'Provider padrao');
 
-    const providerChoice = await promptUser(`${COLORS.YELLOW}Escolha o Provider Padrao (1=Ollama, 2=Gemini): ${COLORS.RESET}`);
-    if (providerChoice === '2') {
+    if (providerChoice === 'gemini') {
         config.lastProvider = 'gemini';
-        const key = await promptUser(`${COLORS.CYAN}Digite sua API Key do Gemini (opcional, ENTER para pular): ${COLORS.RESET}`);
-        if (key.trim()) {
-            config.gemini.apiKeys.push({ key: key.trim(), alias: `Key_${config.gemini.apiKeys.length + 1}` });
-        }
+        await addGeminiKeys(config);
     } else {
         config.lastProvider = 'ollama';
         console.log(`${COLORS.YELLOW}Endpoint Ollama atual: ${COLORS.RESET}${config.ollama.endpoint}`);
-        const ans = await promptUser(`${COLORS.YELLOW}O endpoint esta correto? (Y/n): ${COLORS.RESET}`);
+        const endpointOk = await chooseBoolean('O endpoint Ollama esta correto?', true);
 
-        if (ans.toLowerCase() === 'n') {
+        if (endpointOk === false) {
             const newEndpoint = await promptUser(`${COLORS.CYAN}Digite o novo endpoint (ex: http://192.168.1.100:11434): ${COLORS.RESET}`);
             if (newEndpoint.trim()) {
                 config.ollama.endpoint = newEndpoint.trim();
@@ -42,90 +180,193 @@ async function configWizard() {
 async function editConfig() {
     const config = loadConfig();
 
-    console.log(`\n${COLORS.CYAN}Configuracao Atual${COLORS.RESET}`);
-    console.log(`${COLORS.YELLOW}  Provider:       ${COLORS.RESET}${config.lastProvider}`);
-    console.log(`${COLORS.YELLOW}  Endpoint:       ${COLORS.RESET}${config.ollama.endpoint}`);
-    console.log(`${COLORS.YELLOW}  Gemini keys:    ${COLORS.RESET}${config.gemini.apiKeys.length}`);
-    console.log(`${COLORS.YELLOW}  Auto-approve:   ${COLORS.RESET}${config.autoApproveMode}`);
-    console.log(`${COLORS.YELLOW}  Arquivo:        ${COLORS.RESET}${getConfigPath()}`);
+    while (true) {
+        console.log(`\n${COLORS.CYAN}Configuracao Atual${COLORS.RESET}`);
+        console.log(`${COLORS.YELLOW}  Provider:       ${COLORS.RESET}${config.lastProvider}`);
+        console.log(`${COLORS.YELLOW}  Endpoint:       ${COLORS.RESET}${config.ollama.endpoint}`);
+        console.log(`${COLORS.YELLOW}  Gemini keys:    ${COLORS.RESET}${config.gemini.apiKeys.length}`);
+        console.log(`${COLORS.YELLOW}  Auto-approve:   ${COLORS.RESET}${config.autoApproveMode}`);
+        console.log(`${COLORS.YELLOW}  Thinking:       ${COLORS.RESET}${config.showThinking}`);
+        console.log(`${COLORS.YELLOW}  Arquivo:        ${COLORS.RESET}${getConfigPath()}`);
 
-    console.log('');
-    const choice = await promptUser(`${COLORS.YELLOW}Alterar: 1=Provider, 2=Endpoint Ollama, 3=Add Gemini Key, 4=Auto-approve, Enter=Voltar: ${COLORS.RESET}`);
+        const choice = await selectMenu([
+            { label: 'Provider', value: 'provider' },
+            { label: 'Endpoint Ollama', value: 'endpoint' },
+            { label: 'Adicionar API Key Gemini', value: 'gemini_key' },
+            { label: 'Gerenciar API Keys Gemini', value: 'manage_gemini_keys' },
+            { label: 'Auto-approve', value: 'auto_approve' },
+            { label: 'Mostrar pensamento da IA', value: 'show_thinking' },
+            { label: 'Voltar', value: 'back' }
+        ], 'Alterar configuracao');
 
-    if (choice === '1') {
-        const pChoice = await promptUser(`${COLORS.CYAN}Provider (1=Ollama, 2=Gemini): ${COLORS.RESET}`);
-        if (pChoice === '1') config.lastProvider = 'ollama';
-        else if (pChoice === '2') config.lastProvider = 'gemini';
-        saveConfig(config);
-        console.log(`${COLORS.GREEN}Provider atualizado para: ${config.lastProvider}${COLORS.RESET}\n`);
-    } else if (choice === '2') {
-        const newEndpoint = await promptUser(`${COLORS.CYAN}Novo endpoint: ${COLORS.RESET}`);
-        if (newEndpoint.trim()) {
-            config.ollama.endpoint = newEndpoint.trim();
-            saveConfig(config);
-            console.log(`${COLORS.GREEN}Endpoint atualizado para: ${config.ollama.endpoint}${COLORS.RESET}\n`);
+        if (choice === 'provider') {
+            const providerChoice = await selectMenu([
+                { label: 'Ollama', value: 'ollama' },
+                { label: 'Gemini', value: 'gemini' },
+                { label: 'Voltar', value: CANCEL }
+            ], 'Provider');
+
+            if (providerChoice !== CANCEL) {
+                config.lastProvider = providerChoice as typeof config.lastProvider;
+                saveConfig(config);
+                console.log(`${COLORS.GREEN}Provider atualizado para: ${config.lastProvider}${COLORS.RESET}\n`);
+            }
+        } else if (choice === 'endpoint') {
+            const newEndpoint = await promptUser(`${COLORS.CYAN}Novo endpoint: ${COLORS.RESET}`);
+            if (newEndpoint.trim()) {
+                config.ollama.endpoint = newEndpoint.trim();
+                saveConfig(config);
+                console.log(`${COLORS.GREEN}Endpoint atualizado para: ${config.ollama.endpoint}${COLORS.RESET}\n`);
+            }
+        } else if (choice === 'gemini_key') {
+            await addGeminiKeys(config);
+        } else if (choice === 'manage_gemini_keys') {
+            await manageGeminiKeys(config);
+        } else if (choice === 'auto_approve') {
+            const value = await chooseBoolean('Auto-approve', config.autoApproveMode);
+            if (value !== null) {
+                config.autoApproveMode = value;
+                saveConfig(config);
+                console.log(`${COLORS.GREEN}Auto-approve agora: ${config.autoApproveMode}${COLORS.RESET}\n`);
+            }
+        } else if (choice === 'show_thinking') {
+            const value = await chooseBoolean('Mostrar pensamento da IA', config.showThinking);
+            if (value !== null) {
+                config.showThinking = value;
+                saveConfig(config);
+                console.log(`${COLORS.GREEN}Mostrar pensamento da IA agora: ${config.showThinking}${COLORS.RESET}\n`);
+            }
+        } else {
+            return;
         }
-    } else if (choice === '3') {
-        const key = await promptUser(`${COLORS.CYAN}Nova API Key Gemini: ${COLORS.RESET}`);
-        if (key.trim()) {
-            config.gemini.apiKeys.push({ key: key.trim(), alias: `Key_${config.gemini.apiKeys.length + 1}` });
-            saveConfig(config);
-            console.log(`${COLORS.GREEN}Chave adicionada. Total de chaves: ${config.gemini.apiKeys.length}${COLORS.RESET}\n`);
-        }
-    } else if (choice === '4') {
-        config.autoApproveMode = !config.autoApproveMode;
-        saveConfig(config);
-        console.log(`${COLORS.GREEN}Auto-approve agora: ${config.autoApproveMode}${COLORS.RESET}\n`);
     }
 }
 
-async function manageSessions(engine: PipelineEngine, cwd: string) {
+function prepareConversation(engine: PipelineEngine, cwd: string): void {
+    startNewSession(cwd);
+    const projectState = detectProjectState(cwd);
+
+    if (projectState.isExistingProject && projectState.hasProjectStatus) {
+        console.log(`\n${COLORS.GREEN}Projeto existente detectado. Entrando em modo Orchestrator.${COLORS.RESET}`);
+        engine.transition('ORCHESTRATING');
+
+        if (projectState.projectStatusContent) {
+            engine.injectContext(
+                `Estado atual do projeto (lido automaticamente de docs/project_status.md):\n${projectState.projectStatusContent}`
+            );
+        }
+    } else if (projectState.isExistingProject) {
+        console.log(`\n${COLORS.YELLOW}Projeto detectado sem documentacao completa. Entrando em modo Project Research.${COLORS.RESET}`);
+        engine.transition('PROJECT_RESEARCH');
+    } else {
+        console.log(`\n${COLORS.MAGENTA}Nenhum projeto detectado. Entrando em modo Discovery para novo projeto.${COLORS.RESET}`);
+        engine.transition('DISCOVERY');
+    }
+}
+
+async function manageSessions(engine: PipelineEngine, cwd: string): Promise<boolean> {
+    const pageSize = 5;
+    let page = 0;
+
     while (true) {
         const sessions = listSessions(cwd);
         if (sessions.length === 0) {
             console.log(`\n${COLORS.YELLOW}Nenhuma sessao salva encontrada para este projeto.${COLORS.RESET}\n`);
-            return;
+            return false;
         }
 
-        console.log(`\n${COLORS.CYAN}--- Sessoes Salvas ---${COLORS.RESET}`);
-        sessions.forEach((s, idx) => {
-            console.log(`[${COLORS.YELLOW}${idx + 1}${COLORS.RESET}] ${s.savedAt.toLocaleString()} (${s.count} mensagens) - ${s.filename}`);
+        const totalPages = Math.max(1, Math.ceil(sessions.length / pageSize));
+        if (page >= totalPages) page = totalPages - 1;
+
+        const start = page * pageSize;
+        const visibleSessions = sessions.slice(start, start + pageSize);
+        const options = visibleSessions.map((session, index) => {
+            const sessionIndex = start + index;
+            const label = `#${sessionIndex + 1}/${sessions.length} - ${session.savedAt.toLocaleString()} (${session.count} mensagens)`;
+            return { label, value: `${sessionIndex}` };
         });
 
-        const choice = await promptUser(`\n${COLORS.CYAN}Escolha uma sessao para carregar (numero), "rm <num>" para apagar, ou ENTER para cancelar: ${COLORS.RESET}`);
-        const trimmed = choice.trim();
-        
-        if (!trimmed) return;
+        if (page > 0) {
+            options.push({ label: 'Pagina anterior', value: 'prev' });
+        }
 
-        if (trimmed.startsWith('rm ')) {
-            const num = parseInt(trimmed.substring(3));
-            if (!isNaN(num) && num > 0 && num <= sessions.length) {
-                const s = sessions[num - 1];
-                if (deleteSession(cwd, s.filename)) {
-                    console.log(`${COLORS.GREEN}Sessao ${num} apagada com sucesso.${COLORS.RESET}`);
-                } else {
-                    console.log(`${COLORS.RED}Falha ao apagar sessao ${num}.${COLORS.RESET}`);
-                }
+        if (page < totalPages - 1) {
+            options.push({ label: 'Proxima pagina', value: 'next' });
+        }
+
+        options.push({ label: 'Voltar', value: 'back' });
+
+        const choice = await selectMenu(options, `Sessoes salvas - pagina ${page + 1}/${totalPages} - total ${sessions.length}`);
+        if (choice === 'back' || choice === CANCEL) return false;
+        if (choice === 'prev') {
+            page--;
+            continue;
+        }
+        if (choice === 'next') {
+            page++;
+            continue;
+        }
+
+        const sessionIndex = Number(choice);
+        const session = sessions[sessionIndex];
+        if (!session) {
+            console.log(`${COLORS.RED}Sessao invalida.${COLORS.RESET}`);
+            continue;
+        }
+
+        const label = `Sessao ${sessionIndex + 1}/${sessions.length} - ${session.savedAt.toLocaleString()} (${session.count} mensagens)`;
+        const action = await selectMenu([
+            { label: 'Carregar sessao', value: 'load' },
+            { label: 'Apagar sessao', value: 'delete' },
+            { label: 'Voltar', value: 'back' }
+        ], label);
+
+        if (action === 'back' || action === CANCEL) {
+            continue;
+        }
+
+        if (action === 'delete') {
+            if (deleteSession(cwd, session.filename)) {
+                console.log(`${COLORS.GREEN}Sessao apagada com sucesso.${COLORS.RESET}`);
             } else {
-                console.log(`${COLORS.RED}Numero invalido.${COLORS.RESET}`);
+                console.log(`${COLORS.RED}Falha ao apagar sessao.${COLORS.RESET}`);
             }
             continue;
         }
 
-        const num = parseInt(trimmed);
-        if (!isNaN(num) && num > 0 && num <= sessions.length) {
-            const s = sessions[num - 1];
-            const data = loadSessionFile(cwd, s.filename);
-            if (data) {
-                engine.setHistory(data.history);
-                engine.setState(data.state);
-                console.log(`${COLORS.GREEN}Sessao restaurada com ${data.history.length} mensagens.${COLORS.RESET}\n`);
-                return;
-            } else {
-                console.log(`${COLORS.RED}Falha ao carregar o arquivo da sessao.${COLORS.RESET}`);
-            }
-        } else {
-            console.log(`${COLORS.RED}Opcao invalida.${COLORS.RESET}`);
+        const data = loadSessionFile(cwd, session.filename);
+        if (data) {
+            engine.setHistory(data.history);
+            engine.setState(data.state);
+            console.log(`${COLORS.GREEN}Sessao restaurada com ${data.history.length} mensagens.${COLORS.RESET}\n`);
+            return true;
+        }
+
+        console.log(`${COLORS.RED}Falha ao carregar o arquivo da sessao.${COLORS.RESET}`);
+    }
+}
+
+async function chooseMainAction(engine: PipelineEngine, cwd: string): Promise<void> {
+    while (true) {
+        const action = await selectMenu([
+            { label: 'Iniciar nova conversa', value: 'new' },
+            { label: 'Configuracoes', value: 'config' },
+            { label: 'Sessoes anteriores', value: 'sessions' }
+        ], 'Menu principal');
+
+        if (action === 'new') {
+            engine.clearHistory();
+            prepareConversation(engine, cwd);
+            return;
+        }
+
+        if (action === 'config') {
+            await editConfig();
+            continue;
+        }
+
+        if (await manageSessions(engine, cwd)) {
+            return;
         }
     }
 }
@@ -137,7 +378,7 @@ async function main() {
 \x1b[35m   ██║   ██║   ██║██║   ██║██║  ███╗\x1b[0m
 \x1b[35m   ██║   ██║   ██║██║   ██║██║   ██║\x1b[0m
 \x1b[35m   ██║   ╚██████╔╝╚██████╔╝╚██████╔╝\x1b[0m
-\x1b[35m   ╚═╝░░░░╚═════╝░░╚═════╝░░╚═════╝░\x1b[0m
+\x1b[35m   ╚═╝    ╚═════╝  ╚═════╝  ╚═════╝ \x1b[0m
 `;
     console.log(logo);
 
@@ -162,11 +403,6 @@ async function main() {
     }
 
     const cwd = process.cwd();
-    const projectState = detectProjectState(cwd);
-
-    console.log(`${COLORS.CYAN}Analise do diretorio: ${cwd}${COLORS.RESET}`);
-    console.log(projectState.summary);
-
     const engine = new PipelineEngine();
 
     onInterrupt(() => {
@@ -176,39 +412,13 @@ async function main() {
         }
     });
 
-    const previousSession = loadLatestSession(cwd);
-    let sessionRestored = false;
+    await chooseMainAction(engine, cwd);
 
-    if (previousSession) {
-        const ans = await promptUser(`\n${COLORS.YELLOW}Sessao anterior encontrada (${previousSession.savedAt}). Retomar? (Y/n): ${COLORS.RESET}`);
-        if (ans.toLowerCase() !== 'n') {
-            engine.setHistory(previousSession.history);
-            engine.setState(previousSession.state);
-            sessionRestored = true;
-            console.log(`${COLORS.GREEN}Sessao restaurada com ${previousSession.history.length} mensagens.${COLORS.RESET}`);
-        }
-    }
+    const printCommands = () => {
+        console.log(`\nComandos: ${COLORS.YELLOW}/exit${COLORS.RESET} (sair) | ${COLORS.YELLOW}/menu${COLORS.RESET} (menu) | ${COLORS.YELLOW}/config${COLORS.RESET} (configuracao) | ${COLORS.YELLOW}/sessoes${COLORS.RESET} (historico)\n`);
+    };
 
-    if (!sessionRestored) {
-        if (projectState.isExistingProject && projectState.hasProjectStatus) {
-            console.log(`\n${COLORS.GREEN}Projeto existente detectado. Entrando em modo Orchestrator.${COLORS.RESET}`);
-            engine.transition('ORCHESTRATING');
-
-            if (projectState.projectStatusContent) {
-                engine.injectContext(
-                    `Estado atual do projeto (lido automaticamente de docs/project_status.md):\n${projectState.projectStatusContent}`
-                );
-            }
-        } else if (projectState.isExistingProject) {
-            console.log(`\n${COLORS.YELLOW}Projeto detectado sem documentacao completa. Entrando em modo Project Research.${COLORS.RESET}`);
-            engine.transition('PROJECT_RESEARCH');
-        } else {
-            console.log(`\n${COLORS.MAGENTA}Nenhum projeto detectado. Entrando em modo Discovery para novo projeto.${COLORS.RESET}`);
-            engine.transition('DISCOVERY');
-        }
-    }
-
-    console.log(`\nComandos: ${COLORS.YELLOW}/exit${COLORS.RESET} (sair) | ${COLORS.YELLOW}/config${COLORS.RESET} (configuracao) | ${COLORS.YELLOW}/sessoes${COLORS.RESET} (historico)\n`);
+    printCommands();
 
     const mentionedFilesCache: Set<string> = new Set();
 
@@ -216,6 +426,12 @@ async function main() {
         let input = await promptUser('Voce: ');
         if (!input.trim()) continue;
         if (input.trim() === '/exit') break;
+
+        if (input.trim() === '/menu') {
+            await chooseMainAction(engine, cwd);
+            printCommands();
+            continue;
+        }
 
         if (input.trim() === '/config') {
             await editConfig();

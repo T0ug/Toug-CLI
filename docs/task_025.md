@@ -128,3 +128,6 @@ Corrigir o bug de Ctrl+C durante streaming e permitir comandos interativos no to
 ## Status
 
 - [ ] Não iniciada
+- [ ] Em andamento
+- [x] Concluída
+- [ ] Bloqueada

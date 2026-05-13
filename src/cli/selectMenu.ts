@@ -5,69 +5,65 @@ export interface SelectMenuOption {
     value: string;
 }
 
+const CANCEL_VALUE = '__cancel__';
+
 export const selectMenu = async (options: SelectMenuOption[], title?: string): Promise<string> => {
     return new Promise((resolve) => {
-        // Pausar o readline para evitar conflito com os inputs crus do menu
         rl.pause();
 
         let selectedIndex = 0;
         const totalOptions = options.length;
+        const pageSize = Math.max(3, Math.min(12, (process.stdout.rows || 18) - 6));
+        let lastRenderedLines = 0;
+
+        const visibleWindow = () => {
+            const half = Math.floor(pageSize / 2);
+            let start = Math.max(0, selectedIndex - half);
+            const maxStart = Math.max(0, totalOptions - pageSize);
+            start = Math.min(start, maxStart);
+            const end = Math.min(totalOptions, start + pageSize);
+            return { start, end };
+        };
 
         const render = () => {
-            // Esconder o cursor
+            const { start, end } = visibleWindow();
+
+            if (lastRenderedLines > 0) {
+                process.stdout.write(`\x1B[${lastRenderedLines}A\r\x1B[J`);
+            }
+
             process.stdout.write('\x1B[?25l');
+            let renderedLines = 0;
 
             if (title) {
-                process.stdout.write(`\n${COLORS.CYAN}${title}${COLORS.RESET}\n`);
-            } else {
-                process.stdout.write('\n');
+                process.stdout.write(`${COLORS.CYAN}${title}${COLORS.RESET}\n`);
+                renderedLines += title.split('\n').length;
             }
 
-            options.forEach((opt, idx) => {
-                const prefix = idx === selectedIndex ? `${COLORS.CYAN}>` : ' ';
-                const color = idx === selectedIndex ? COLORS.CYAN : '';
-                const resetColor = idx === selectedIndex ? COLORS.RESET : '';
+            if (totalOptions > pageSize) {
+                process.stdout.write(`${COLORS.DIM}${selectedIndex + 1}/${totalOptions} - use setas, Enter para selecionar, Ctrl+C para voltar${COLORS.RESET}\n`);
+                renderedLines++;
+            }
+
+            for (let idx = start; idx < end; idx++) {
+                const opt = options[idx];
+                const isSelected = idx === selectedIndex;
+                const prefix = isSelected ? `${COLORS.CYAN}>` : ' ';
+                const color = isSelected ? COLORS.CYAN : '';
+                const resetColor = isSelected ? COLORS.RESET : '';
                 process.stdout.write(`${prefix} ${color}${opt.label}${resetColor}\n`);
-            });
+                renderedLines++;
+            }
+
+            lastRenderedLines = renderedLines;
         };
 
-        const cleanup = (linesToClear: number) => {
-            // Mover o cursor para cima as linhas necessárias e limpar a tela a partir dali
-            process.stdout.write(`\x1B[${linesToClear}A\x1B[J`);
-            // Mostrar cursor novamente
+        const cleanup = () => {
             process.stdout.write('\x1B[?25h');
-        };
-
-        const onKeyPress = (chunk: Buffer, key: any) => {
-            if (key.name === 'up') {
-                selectedIndex = (selectedIndex - 1 + totalOptions) % totalOptions;
-            } else if (key.name === 'down') {
-                selectedIndex = (selectedIndex + 1) % totalOptions;
-            } else if (key.name === 'return' || key.name === 'enter') {
-                finalize(options[selectedIndex].value);
-                return;
-            } else if (key.name === 'c' && key.ctrl) {
-                finalize('__cancel__');
-                return;
-            } else {
-                // Teclas irrelevantes ignoradas
-                return;
+            if (lastRenderedLines > 0) {
+                process.stdout.write(`\x1B[${lastRenderedLines}A\r\x1B[J`);
+                lastRenderedLines = 0;
             }
-
-            const linesToClear = totalOptions + (title ? 2 : 1);
-            process.stdout.write(`\x1B[${linesToClear}A`);
-            
-            if (title) {
-                process.stdout.write(`\n${COLORS.CYAN}${title}${COLORS.RESET}\n`);
-            } else {
-                process.stdout.write('\n');
-            }
-            options.forEach((opt, idx) => {
-                const prefix = idx === selectedIndex ? `${COLORS.CYAN}>` : ' ';
-                const color = idx === selectedIndex ? COLORS.CYAN : '';
-                const resetColor = idx === selectedIndex ? COLORS.RESET : '';
-                process.stdout.write(`${prefix} ${color}${opt.label}${resetColor}\n`);
-            });
         };
 
         const finalize = (value: string) => {
@@ -75,24 +71,47 @@ export const selectMenu = async (options: SelectMenuOption[], title?: string): P
             if (process.stdin.isTTY) {
                 process.stdin.setRawMode(false);
             }
-            
-            const linesToClear = totalOptions + (title ? 2 : 1);
-            cleanup(linesToClear);
-            
+
+            cleanup();
             rl.resume();
             resolve(value);
         };
 
-        render();
+        const onKeyPress = (_chunk: Buffer, key: any) => {
+            if (key.name === 'up') {
+                selectedIndex = (selectedIndex - 1 + totalOptions) % totalOptions;
+            } else if (key.name === 'down') {
+                selectedIndex = (selectedIndex + 1) % totalOptions;
+            } else if (key.name === 'pageup') {
+                selectedIndex = Math.max(0, selectedIndex - pageSize);
+            } else if (key.name === 'pagedown') {
+                selectedIndex = Math.min(totalOptions - 1, selectedIndex + pageSize);
+            } else if (key.name === 'return' || key.name === 'enter') {
+                finalize(options[selectedIndex].value);
+                return;
+            } else if (key.name === 'c' && key.ctrl) {
+                finalize(CANCEL_VALUE);
+                return;
+            } else {
+                return;
+            }
+
+            render();
+        };
+
+        if (totalOptions === 0) {
+            resolve(CANCEL_VALUE);
+            return;
+        }
+
+        const readlineNode = require('readline');
+        readlineNode.emitKeypressEvents(process.stdin);
 
         if (process.stdin.isTTY) {
             process.stdin.setRawMode(true);
         }
-        
-        // Assegurar que os eventos de keypress sejam emitidos pelo stdin
-        const readlineNode = require('readline');
-        readlineNode.emitKeypressEvents(process.stdin);
-        
+        process.stdin.resume();
         process.stdin.on('keypress', onKeyPress);
+        render();
     });
 };

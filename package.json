@@ -1,6 +1,6 @@
 {
   "name": "toug-cli",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Assistente de desenvolvimento AI local com pipeline forçada via Ollama/Docker",
   "main": "index.js",
   "directories": {

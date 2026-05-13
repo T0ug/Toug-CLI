@@ -144,3 +144,6 @@ Refatorar o `index.ts` para usar selectMenu em todos os pontos de interação, i
 ## Status
 
 - [ ] Não iniciada
+- [ ] Em andamento
+- [x] Concluída
+- [ ] Bloqueada

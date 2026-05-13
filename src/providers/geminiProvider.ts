@@ -130,86 +130,68 @@ export class GeminiProvider implements AIProvider {
 
         const functionDeclarations = this.convertTools(request.tools);
 
-        let attempts = 0;
-        const maxAttempts = keys.length;
-        let activeKeyIndex = request.metadata.apiKeyIndex || 0;
+        try {
+            const activeKeyIndex = request.metadata.apiKeyIndex || 0;
+            const key = keys[activeKeyIndex % keys.length];
+            const ai = new GoogleGenAI({ apiKey: key.key });
 
-        while (attempts < maxAttempts) {
-            try {
-                const key = keys[activeKeyIndex % keys.length];
-                const ai = new GoogleGenAI({ apiKey: key.key });
+            const systemInstruction = firstSystemMessage ? { parts: [{ text: firstSystemMessage.content }] } : undefined;
+            const configManager = loadConfig();
 
-                const systemInstruction = firstSystemMessage ? { parts: [{ text: firstSystemMessage.content }] } : undefined;
-                const configManager = loadConfig();
+            const responseStream = await ai.models.generateContentStream({
+                model: request.model,
+                contents: safeContents as Content[],
+                config: {
+                    systemInstruction,
+                    tools: [{ functionDeclarations }],
+                    ...(configManager.showThinking && { thinkingConfig: { includeThoughts: true, thinkingBudget: -1 } })
+                }
+            });
 
-                const responseStream = await ai.models.generateContentStream({
-                    model: request.model,
-                    contents: safeContents as Content[],
-                    config: {
-                        systemInstruction,
-                        tools: [{ functionDeclarations }],
-                        ...(configManager.showThinking && { thinkingConfig: { includeThoughts: true } })
+            for await (const chunk of responseStream) {
+                if (request.abortSignal?.aborted) {
+                    return;
+                }
+
+                if (chunk.candidates && chunk.candidates[0]?.content?.parts) {
+                    for (const part of chunk.candidates[0].content.parts) {
+                        if ((part as any).thought === true && (part as any).text) {
+                            yield { type: 'thinking_delta', text: (part as any).text };
+                        }
                     }
-                });
+                }
 
-                for await (const chunk of responseStream) {
-                    if (request.abortSignal?.aborted) {
-                        return;
-                    }
+                if (chunk.text) {
+                    yield { type: 'text_delta', text: chunk.text };
+                }
 
-                    if (chunk.candidates && chunk.candidates[0]?.content?.parts) {
-                        for (const part of chunk.candidates[0].content.parts) {
-                            if ((part as any).thought === true && (part as any).text) {
-                                yield { type: 'thinking_delta', text: (part as any).text };
-                            } else if (!(part as any).thought && part.text) {
-                                // Usually if we enable includeThoughts, normal text might still just come in chunk.text, 
-                                // but if the SDK breaks it into parts where some are thought and some are not, we handle it here.
+                if (chunk.functionCalls && chunk.functionCalls.length > 0) {
+                    for (const fc of chunk.functionCalls) {
+                        yield {
+                            type: 'tool_call',
+                            call: {
+                                id: Math.random().toString(36).substring(7),
+                                name: fc.name as any,
+                                args: fc.args as any,
+                                source: 'function_call'
                             }
-                        }
-                    }
-
-                    // For now, if chunk.text is populated and isn't just the thought, we yield it.
-                    // The SDK usually handles text directly. But if we extracted thought, chunk.text might also contain it.
-                    // Let's rely on standard chunk.text for the actual response.
-                    if (chunk.text && !(chunk as any).thought) {
-                        yield { type: 'text_delta', text: chunk.text };
-                    }
-
-                    if (chunk.functionCalls && chunk.functionCalls.length > 0) {
-                        for (const fc of chunk.functionCalls) {
-                            yield {
-                                type: 'tool_call',
-                                call: {
-                                    id: Math.random().toString(36).substring(7),
-                                    name: fc.name as any,
-                                    args: fc.args as any,
-                                    source: 'function_call'
-                                }
-                            };
-                        }
+                        };
                     }
                 }
-
-                yield { type: 'done' };
-                return;
-
-            } catch (error: any) {
-                const errorStr = error?.message || String(error);
-                if (errorStr.includes('429') && attempts < maxAttempts - 1) {
-                    attempts++;
-                    activeKeyIndex++;
-                    continue;
-                }
-
-                yield {
-                    type: 'error',
-                    error: {
-                        message: error?.message || String(error),
-                        raw: error
-                    }
-                };
-                return;
             }
+
+            yield { type: 'done' };
+            return;
+
+        } catch (error: any) {
+            yield {
+                type: 'error',
+                error: {
+                    message: error?.message || String(error),
+                    raw: error
+                }
+            };
+            return;
         }
 
     }
