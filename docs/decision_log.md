@@ -57,3 +57,15 @@
 | 053 | 2026-05-12 | Pré-processamento de menções isolado no CLI | Resolução de arquivos `@` fará injeção de texto direto no prompt em vez de Tool Calling oculto no Gemini. Preserva tokens e isola provider | Architect |
 | 054 | 2026-05-12 | Lógica de fallback residente no PipelineEngine | O loop de retentativas ficará no orquestrador global para centralizar o fallback de API keys, modelos e até queda para o Ollama | Architect |
 | 055 | 2026-05-12 | Migração de Config nativa | Atualização do tipo array de strings para array de objetos `{key, alias}` com compatibilidade legada silenciosa | Architect |
+| 056 | 2026-05-13 | Thinking display em cinza escuro | Raciocínio da IA exibido em `\x1b[90m` antes da resposta final, com toggle no /config | Discovery |
+| 057 | 2026-05-13 | Menus interativos com setas do teclado | Substituir todas as seleções Y/N e numéricas por navegação ↑/↓ + Enter via raw stdin nativo | Discovery |
+| 058 | 2026-05-13 | Menu principal com 3 opções | Remover análise do diretório visual e prompt de retomar sessão; exibir "Nova conversa / Configurações / Sessões anteriores" | Discovery |
+| 059 | 2026-05-13 | ToolRunner com stdin conectado | Usar spawn com stdio inherit para permitir comandos interativos como Read-Host | Discovery |
+| 060 | 2026-05-13 | Fix Ctrl+C durante streaming | Corrigir AbortController para interromper geração sem travar terminal | Discovery |
+| 061 | 2026-05-13 | Fluxo completo de API keys com apelido | Pedir alias após key com hint dimmed, perguntar se quer adicionar outra | Discovery |
+| 062 | 2026-05-13 | Abordagem A: Componentes isolados | selectMenu.ts como módulo reutilizável + thinking_delta como novo ProviderEvent | Architect |
+| 063 | 2026-05-13 | thinking_delta separado de text_delta | Não polui o evento de texto, permite toggle sem modificar providers | Architect |
+| 064 | 2026-05-13 | Thinking não entra no histórico | Economiza tokens, raciocínio é efêmero e serve apenas para visualização | Architect |
+| 065 | 2026-05-13 | Raw mode nativo sem dependência externa | selectMenu simples o suficiente para implementar com process.stdin.setRawMode | Architect |
+| 066 | 2026-05-13 | spawn com stdio inherit perde captura de output | Trade-off aceito: interatividade do usuário vale mais que captura de texto para devolver ao modelo | Architect |
+

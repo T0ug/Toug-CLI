@@ -70,3 +70,25 @@
 - [x] Task 020 - Fase 13.3 - Resolução de Menções a Arquivos (@file) (`docs/task_020.md`)
 - [x] Task 021 - Fase 13.4 - Gerenciador de Sessões (/sessoes) e Limite de Contexto (`docs/task_021.md`)
 - [x] Task 022 - Fase 13.5 - Routing Heurístico e Atualização de Modelos Docker (`docs/task_022.md`)
+
+## Fase 14 - Thinking Display, UX Interativa e Correções
+
+- [ ] Implementar componente de menu interativo com setas (↑/↓ + Enter) via raw stdin nativo.
+- [ ] Implementar menu principal pós-config: "Iniciar nova conversa" / "Configurações" / "Sessões anteriores".
+- [ ] Remover análise visual do diretório (✅/❌) e prompt "Retomar sessão? (Y/n)".
+- [ ] Migrar todas as seleções Y/N e numéricas para menus com setas.
+- [ ] Implementar thinking display: enviar `think: true` ao Ollama e `thinkingConfig` ao Gemini.
+- [ ] Renderizar pensamento em cinza escuro (`\x1b[90m`) durante streaming.
+- [ ] Adicionar toggle `showThinking` no `/config`.
+- [ ] Corrigir Ctrl+C para interromper geração de resposta sem travar terminal.
+- [ ] Substituir `execAsync` por `spawn` com `stdio: 'inherit'` no toolRunner para comandos interativos.
+- [ ] Implementar fluxo completo de API keys: pedir apelido com hint dimmed + loop "adicionar outra?".
+
+### Tasks formais (Fase 14)
+
+- [ ] Task 023 - Fase 14.1 - Componente selectMenu e Fundação de Config (`docs/task_023.md`)
+- [ ] Task 024 - Fase 14.2 - Thinking Display nos Providers e PipelineEngine (`docs/task_024.md`)
+- [ ] Task 025 - Fase 14.3 - Fix Ctrl+C e ToolRunner com stdin interativo (`docs/task_025.md`)
+- [ ] Task 026 - Fase 14.4 - Menu Principal, Migração UX e Fluxo de API Keys (`docs/task_026.md`)
+
+

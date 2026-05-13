@@ -13,6 +13,7 @@ export interface TougConfig {
         apiKeys: { key: string; alias: string }[];
     };
     autoApproveMode: boolean;
+    showThinking: boolean;
 }
 
 interface LegacyTougConfig {
@@ -30,7 +31,8 @@ const DEFAULT_CONFIG: TougConfig = {
     gemini: {
         apiKeys: []
     },
-    autoApproveMode: false
+    autoApproveMode: false,
+    showThinking: true
 };
 
 export const getConfigPath = (): string => {
@@ -78,7 +80,10 @@ const normalizeConfig = (raw: unknown): TougConfig => {
             },
             autoApproveMode: typeof candidate.autoApproveMode === 'boolean'
                 ? candidate.autoApproveMode
-                : DEFAULT_CONFIG.autoApproveMode
+                : DEFAULT_CONFIG.autoApproveMode,
+            showThinking: typeof candidate.showThinking === 'boolean'
+                ? candidate.showThinking
+                : DEFAULT_CONFIG.showThinking
         };
     }
 
@@ -89,7 +94,10 @@ const normalizeConfig = (raw: unknown): TougConfig => {
         },
         autoApproveMode: typeof candidate?.autoApproveMode === 'boolean'
             ? candidate.autoApproveMode
-            : DEFAULT_CONFIG.autoApproveMode
+            : DEFAULT_CONFIG.autoApproveMode,
+        showThinking: typeof candidate?.showThinking === 'boolean'
+            ? candidate.showThinking
+            : DEFAULT_CONFIG.showThinking
     };
 };
 

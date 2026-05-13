@@ -15,7 +15,13 @@ O Toug CLI é uma ferramenta de terminal que conecta a modelos de IA locais (via
 - **Sessões Persistentes** — Snapshot salvo a cada iteração individual na conversa. Você retoma de onde parou infalivelmente.
 - **Detecção Inteligente de Projeto** — Inicia em Discovery para novos projetos, Architect/Research para legados baseando-se em `docs/`.
 - **Limites de Sandbox e Cancelamento** — Geração abortável via `Ctrl+C` iterativo sem desligar o console. Path traversal e saídas fora do repositório estritamente banidas.
-- **Multi-Model por Agente** — Cada etapa assume o modelo local ou cloud otimizado nas configurações.
+- **Multi-Model por Agente** — O CLI decide qual o melhor modelo interno para cada etapa da pipeline.
+- **Fallback Multi-Modelo e Multi-Key** — Cadeia de resiliência automática: troca de modelo Gemini → troca de API key → Ollama como último recurso.
+- **Menções `@` de Arquivos e Pastas** — Digite `@arquivo.ts` ou `@/src` no prompt para injetar o conteúdo diretamente no contexto, sem consumo extra de tokens.
+- **Gestão de Sessões (`/sessoes`)** — Liste, renomeie e retome qualquer sessão anterior, não apenas a mais recente.
+- **Routing Heurístico** — O CLI detecta tarefas simples e sugere usar Ollama local para economizar cota da API.
+- **Thinking Display** — Exibe o fluxo de raciocínio da IA antes da resposta final (configurável via `showThinking`).
+- **Interface Interativa** — Navegação nativa via menus com setas do teclado para confirmações e opções de sessão.
 
 ---
 
@@ -75,41 +81,29 @@ npm run start
 
 ## ⚙️ Configuração
 
-O arquivo de configuração `v2` é criado dinamicamente em `~/.toug-cli/toug.config.json` na primeira execução. A CLI pedirá que você escolha o **Ollama** ou **Gemini** primariamente.
+O arquivo de configuração é criado dinamicamente em `~/.toug-cli/toug.config.json` na primeira execução. A CLI pedirá que você escolha o **Ollama** ou **Gemini** primariamente.
 
 ```json
 {
+  "configVersion": 2,
   "lastProvider": "gemini",
   "ollama": {
     "endpoint": "http://localhost:11434"
   },
   "gemini": {
     "apiKeys": [
-      "SUA_API_KEY_AKI",
-      "OUTRA_API_KEY_SECUNDARIA_AKI"
+      {
+        "key": "SUA_API_KEY_AKI",
+        "alias": "Minha_Key_Principal"
+      }
     ]
   },
-  "models": {
-    "ollama": {
-      "discovery": "gemma3:4b",
-      "architect": "deepseek-r1:8b",
-      "executor": "qwen2.5-coder:7b",
-      "reviewer": "deepseek-r1:8b",
-      "orchestrator": "qwen3:8b",
-      "project_research": "qwen2.5-coder:7b"
-    },
-    "gemini": {
-      "discovery": "gemini-2.5-flash",
-      "architect": "gemini-2.5-pro",
-      "executor": "gemini-2.5-flash",
-      "reviewer": "gemini-2.5-pro",
-      "orchestrator": "gemini-2.5-flash",
-      "project_research": "gemini-2.5-flash"
-    }
-  },
-  "autoApproveMode": false
+  "autoApproveMode": false,
+  "showThinking": true
 }
 ```
+
+> **Nota:** A partir da versão v2 de configuração, o mapeamento de modelos por agente é gerenciado internamente pelo CLI (`modelRegistry`) com lógica de fallback multi-modelo, não precisando mais ser configurado manualmente.
 
 ---
 
@@ -119,7 +113,8 @@ O arquivo de configuração `v2` é criado dinamicamente em `~/.toug-cli/toug.co
 src/
 ├── cli/              # Interface de terminal (readline, cores ANSI)
 ├── agents/           # Definições de agentes e System Prompts
-├── engine/           # Pipeline Engine, Ollama Client, Tool Runner
+├── engine/           # Pipeline Engine e Tool Runner
+├── providers/        # Clientes Ollama e Gemini com eventos normalizados
 ├── data/             # Config Manager e Session Manager
 └── index.ts          # Entrypoint principal (REPL Loop)
 
@@ -137,17 +132,29 @@ IDLE → ORCHESTRATING → DISCOVERY → ARCHITECT → EXECUTING → REVIEW
                 └──────────────────────────────────────────────┘
 ```
 
+### Fallback de Provedores (modo Gemini)
+
+```
+Modelo primário (2.5-pro / 2.5-flash)
+    → Próximo modelo Gemini
+    → Próxima API Key
+    → Ollama local (qwen3:14b → qwen3:8b)
+```
+
 ---
 
 ## 🔧 Comandos Disponíveis
 
 | Comando | Descrição |
 |---------|-----------|
-| `npm run build` | Compila o código TypeScript base |
-| `npm run start` | Inicia o CLI interativomente |
-| `/config` | Invoca o ConfigWizard e ajusta provedor Global/Ollama/Gemini localmente |
+| `npm run build` | Compila o código TypeScript |
+| `npm run start` | Inicia o CLI interativamente |
+| `/config` | Invoca o ConfigWizard e ajusta provedor, API keys e auto-approve |
+| `/sessoes` | Lista, renomeia e retoma sessões anteriores |
 | `/exit` | Encerra a sessão atual (o autosave garantirá a volta intacta) |
-| `Ctrl+C` | (Se rodando) Aborta o stream de geração sem matar o processo. |
+| `@arquivo` | Injeta o conteúdo de um arquivo no prompt (ex: `@src/index.ts`) |
+| `@/pasta` | Injeta recursivamente os arquivos de uma pasta no prompt |
+| `Ctrl+C` | (Se rodando) Aborta o stream de geração sem matar o processo |
 
 ---
 

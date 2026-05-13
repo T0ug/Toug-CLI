@@ -1,6 +1,6 @@
 import * as readline from 'readline/promises';
 
-const rl = readline.createInterface({
+export const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout
 });
@@ -11,7 +11,8 @@ export const COLORS = {
     GREEN: '\x1b[32m',
     YELLOW: '\x1b[33m',
     RED: '\x1b[31m',
-    MAGENTA: '\x1b[35m'
+    MAGENTA: '\x1b[35m',
+    DIM: '\x1b[90m'
 };
 
 export const promptUser = async (text: string): Promise<string> => {
