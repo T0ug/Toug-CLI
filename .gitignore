@@ -1,3 +1,4 @@
+gpush.ps1
 node_modules/
 dist/
 .toug-cli/
@@ -5,3 +6,8 @@ dist/
 .agents/
 gemini.md
 gpush.ps1
+docker/.env
+docker/aha.txt
+docker/config.yml
+docker/f01e1574-d27e-420e-9f8e-5091dc7d2125.json
+docker/cert.pem

@@ -6,8 +6,9 @@ import { PipelineEngine } from './engine/pipelineEngine';
 import { OllamaClient } from './engine/ollamaClient';
 import { detectProjectState } from './engine/projectDetector';
 import { loadConfig, saveConfig, isFirstRun, getConfigPath } from './data/configManager';
-import { saveSession, loadLatestSession, compressHistory } from './data/sessionManager';
+import { saveSession, loadLatestSession, compressHistory, listSessions, loadSessionFile, deleteSession } from './data/sessionManager';
 import { promptUser, printHeader, printError, closeChat, COLORS, onInterrupt } from './cli/chatInterface';
+import { readArtifact } from './engine/artifactManager';
 
 async function configWizard() {
     console.log(`\n${COLORS.CYAN}Configuracao Inicial do Toug CLI${COLORS.RESET}\n`);
@@ -75,6 +76,57 @@ async function editConfig() {
         config.autoApproveMode = !config.autoApproveMode;
         saveConfig(config);
         console.log(`${COLORS.GREEN}Auto-approve agora: ${config.autoApproveMode}${COLORS.RESET}\n`);
+    }
+}
+
+async function manageSessions(engine: PipelineEngine, cwd: string) {
+    while (true) {
+        const sessions = listSessions(cwd);
+        if (sessions.length === 0) {
+            console.log(`\n${COLORS.YELLOW}Nenhuma sessao salva encontrada para este projeto.${COLORS.RESET}\n`);
+            return;
+        }
+
+        console.log(`\n${COLORS.CYAN}--- Sessoes Salvas ---${COLORS.RESET}`);
+        sessions.forEach((s, idx) => {
+            console.log(`[${COLORS.YELLOW}${idx + 1}${COLORS.RESET}] ${s.savedAt.toLocaleString()} (${s.count} mensagens) - ${s.filename}`);
+        });
+
+        const choice = await promptUser(`\n${COLORS.CYAN}Escolha uma sessao para carregar (numero), "rm <num>" para apagar, ou ENTER para cancelar: ${COLORS.RESET}`);
+        const trimmed = choice.trim();
+        
+        if (!trimmed) return;
+
+        if (trimmed.startsWith('rm ')) {
+            const num = parseInt(trimmed.substring(3));
+            if (!isNaN(num) && num > 0 && num <= sessions.length) {
+                const s = sessions[num - 1];
+                if (deleteSession(cwd, s.filename)) {
+                    console.log(`${COLORS.GREEN}Sessao ${num} apagada com sucesso.${COLORS.RESET}`);
+                } else {
+                    console.log(`${COLORS.RED}Falha ao apagar sessao ${num}.${COLORS.RESET}`);
+                }
+            } else {
+                console.log(`${COLORS.RED}Numero invalido.${COLORS.RESET}`);
+            }
+            continue;
+        }
+
+        const num = parseInt(trimmed);
+        if (!isNaN(num) && num > 0 && num <= sessions.length) {
+            const s = sessions[num - 1];
+            const data = loadSessionFile(cwd, s.filename);
+            if (data) {
+                engine.setHistory(data.history);
+                engine.setState(data.state);
+                console.log(`${COLORS.GREEN}Sessao restaurada com ${data.history.length} mensagens.${COLORS.RESET}\n`);
+                return;
+            } else {
+                console.log(`${COLORS.RED}Falha ao carregar o arquivo da sessao.${COLORS.RESET}`);
+            }
+        } else {
+            console.log(`${COLORS.RED}Opcao invalida.${COLORS.RESET}`);
+        }
     }
 }
 
@@ -156,16 +208,73 @@ async function main() {
         }
     }
 
-    console.log(`\nComandos: ${COLORS.YELLOW}/exit${COLORS.RESET} (sair) | ${COLORS.YELLOW}/config${COLORS.RESET} (editar configuracao)\n`);
+    console.log(`\nComandos: ${COLORS.YELLOW}/exit${COLORS.RESET} (sair) | ${COLORS.YELLOW}/config${COLORS.RESET} (configuracao) | ${COLORS.YELLOW}/sessoes${COLORS.RESET} (historico)\n`);
+
+    const mentionedFilesCache: Set<string> = new Set();
 
     while (true) {
-        const input = await promptUser('Voce: ');
+        let input = await promptUser('Voce: ');
         if (!input.trim()) continue;
         if (input.trim() === '/exit') break;
 
         if (input.trim() === '/config') {
             await editConfig();
             continue;
+        }
+
+        if (input.trim() === '/sessoes') {
+            await manageSessions(engine, cwd);
+            continue;
+        }
+
+        if (input.trim().startsWith('?')) {
+            console.log(`\n${COLORS.CYAN}[Heuristica] Tarefa simples detectada. Acionando bypass de roteamento rapido...${COLORS.RESET}`);
+            const query = input.trim().substring(1).trim();
+            if (!query) {
+                console.log(`${COLORS.YELLOW}Por favor digite uma pergunta apos o '?'.${COLORS.RESET}`);
+                continue;
+            }
+
+            const tempEngine = new PipelineEngine();
+            tempEngine.transition('DISCOVERY');
+            const activeTemp = tempEngine.getActiveConfig();
+            printHeader(activeTemp.role, activeTemp.model, activeTemp.provider);
+
+            try {
+                const stream = tempEngine.processInput(query);
+                for await (const chunk of stream) {
+                    process.stdout.write(chunk);
+                }
+                console.log('\n');
+            } catch (e: any) {
+                printError('Falha na execucao Heuristica.', e.message);
+            }
+            continue;
+        }
+
+        const mentionRegex = /@([\w./\-\\]+)/g;
+        let match;
+        let appendedContext = '';
+
+        while ((match = mentionRegex.exec(input)) !== null) {
+            const filepath = match[1];
+            if (mentionedFilesCache.has(filepath)) {
+                console.log(`${COLORS.YELLOW}[Anexado: ${filepath} (ja na memoria)]${COLORS.RESET}`);
+                continue;
+            }
+
+            const content = readArtifact(filepath, cwd);
+            if (content.startsWith('[ERRO]')) {
+                console.log(`${COLORS.YELLOW}[Aviso: Falha ao ler '${filepath}']${COLORS.RESET}`);
+            } else {
+                mentionedFilesCache.add(filepath);
+                console.log(`${COLORS.GREEN}[Anexado: ${filepath}]${COLORS.RESET}`);
+                appendedContext += `\n\n--- Conteudo de ${filepath} ---\n${content}\n`;
+            }
+        }
+
+        if (appendedContext) {
+            input += `\n\n(Contexto anexado pelo usuario via @)\n${appendedContext}`;
         }
 
         const active = engine.getActiveConfig();
@@ -182,8 +291,8 @@ async function main() {
         }
 
         const currentHistory = engine.getHistory();
-        if (currentHistory.length > 50) {
-            const compressed = compressHistory(currentHistory, 10);
+        if (currentHistory.length > 100) {
+            const compressed = compressHistory(currentHistory, 20);
             engine.setHistory(compressed);
             console.log(`${COLORS.YELLOW}[SYSTEM] Contexto comprimido: ${currentHistory.length} -> ${compressed.length} mensagens.${COLORS.RESET}\n`);
         }

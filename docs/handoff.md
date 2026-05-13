@@ -1,25 +1,22 @@
 # Handoff
 
 ## Task
-- ID: 020
-- Nome: Fase 13.3 - Resolução de Menções a Arquivos (@file)
-- Agente responsavel: Orchestrator
+- ID: 022
+- Nome: Fase 13.5 - Routing Heurístico e Atualização de Modelos Docker
+- Agente responsavel: Executor
 
 ## Objetivo
-Delegar ao Executor a implementação da resolução nativa de menções (`@arquivo`) na borda do CLI, visando economizar chamadas de tools (Function Calling) e otimizar velocidade.
+Implementar bypass rápido para dúvidas simples no `index.ts` usando o prefixo `?` e atualizar os comandos de gerência de modelo (`pull_models`) do Docker.
 
 ## Escopo Executado
-- O Orchestrator definiu as fronteiras da task: processamento deve ocorrer estritamente na interface/input, não no Engine.
-- Regras de deduplicação e uso dos bloqueios de segurança do `artifactManager` foram documentadas como Critérios de Aceite críticos.
-
-## Artefatos gerados
-- `docs/task_020.md`
-- Atualização do `docs/project_status.md`
+- O `index.ts` intercepta inputs com `?` no início, acionando um pipeline temporário usando exclusivamente o Agente `DISCOVERY` (que não depende de Project Context). O contexto da dúvida é servido no console e imediatamente deletado da memória para não atrapalhar a execução do projeto rodando no fundo.
+- Os arquivos `docker/pull_models.bat` e `docker/pull_models.sh` sofreram refatoração total, adicionando lógicas de limpeza agressiva (`ollama rm`) para `llama3`, `deepseek-r1` e `gemma3`, abrindo espaço para baixar `qwen3:14b` e `qwen3:8b` como os atuais pilares absolutos de inteligência do Toug-CLI.
 
 ## Validacao / Evidencia
-- Task modelada conforme as orientações descritas na `tasks.md` Fase 13.
+- A aplicação compila sem erros (`npm run build`). 
+- A lógica de heurística isola com sucesso as chamadas de API, garantindo queries leves e desacopladas para perguntas triviais do usuário.
 
 ## Proxima acao sugerida
-- Agente: Executor
+- Agente: Reviewer
 - Skill: Nenhuma
-- Objetivo: Ler a `task_020.md` e implementar a lógica de parser de Regex e leitura no arquivo responsável pela entrada do terminal, injetando o contexto no payload antes de entregá-lo à IA.
+- Objetivo: Ler a `task_022.md` e validar se a interceptação de `?` atende às expectativas de heurística da Fase 13, fechando assim a última pendência desta jornada.

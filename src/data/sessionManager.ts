@@ -70,6 +70,70 @@ export const loadLatestSession = (cwd: string): SessionData | null => {
     }
 };
 
+export const listSessions = (cwd: string): { filename: string, savedAt: Date, count: number }[] => {
+    const dir = getSessionsDir();
+    const prefix = cwdHash(cwd) + '_';
+    const result: { filename: string, savedAt: Date, count: number }[] = [];
+
+    try {
+        const files = fs.readdirSync(dir)
+            .filter(f => f.startsWith(prefix) && f.endsWith('.json'))
+            .sort()
+            .reverse();
+
+        for (const file of files) {
+            try {
+                const filePath = path.join(dir, file);
+                const content = fs.readFileSync(filePath, 'utf8');
+                const data = JSON.parse(content) as SessionData;
+                result.push({
+                    filename: file,
+                    savedAt: new Date(data.savedAt),
+                    count: data.history.length
+                });
+            } catch {
+                continue;
+            }
+        }
+    } catch {
+        // ignore
+    }
+
+    return result;
+};
+
+export const loadSessionFile = (cwd: string, filename: string): SessionData | null => {
+    const dir = getSessionsDir();
+    const prefix = cwdHash(cwd) + '_';
+    if (!filename.startsWith(prefix)) return null;
+
+    try {
+        const filePath = path.join(dir, filename);
+        if (!fs.existsSync(filePath)) return null;
+        const content = fs.readFileSync(filePath, 'utf8');
+        return JSON.parse(content) as SessionData;
+    } catch {
+        return null;
+    }
+};
+
+export const deleteSession = (cwd: string, filename: string): boolean => {
+    const dir = getSessionsDir();
+    const prefix = cwdHash(cwd) + '_';
+    if (!filename.startsWith(prefix)) return false;
+
+    try {
+        const filePath = path.join(dir, filename);
+        if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+            return true;
+        }
+        return false;
+    } catch {
+        return false;
+    }
+};
+
 export const compressHistory = (history: Message[], keepLast: number = 10): Message[] => {
     if (history.length <= keepLast + 5) return history;
 

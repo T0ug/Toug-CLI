@@ -88,5 +88,5 @@ Atualmente, se o usuário precisa que a IA leia um arquivo, ele pede verbalmente
 
 - [ ] Nao iniciada
 - [ ] Em andamento
-- [ ] Concluida
+- [x] Concluida
 - [ ] Bloqueada

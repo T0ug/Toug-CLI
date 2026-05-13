@@ -49,16 +49,24 @@
 
 ## Fase 13 - Fallback Multi-Modelo, Menções de Arquivo e Gestão de Sessões
 
-- [ ] Refatorar modelRegistry para suportar lista ordenada de fallbacks por agent/provider.
-- [ ] Implementar lógica de fallback por modelo no PipelineEngine (detectar 429/RESOURCE_EXHAUSTED e tentar próximo modelo).
-- [ ] Implementar fallback por API key após esgotar todos os modelos.
-- [ ] Implementar Ollama como último fallback no modo Gemini (com detecção de Ollama offline).
-- [ ] Implementar descarregamento explícito de modelo Ollama via API antes de carregar fallback.
-- [ ] Unificar modelos Ollama em qwen3:14b (primário) e qwen3:8b (fallback).
-- [ ] Implementar apelidos (nicknames) para API keys no /config e exibição no terminal.
-- [ ] Implementar sistema de menções @ para arquivos e diretórios com resolução pelo CLI.
-- [ ] Implementar deduplicação de menções já carregadas na sessão.
-- [ ] Implementar /sessoes para listar, renomear e retomar qualquer sessão anterior.
-- [ ] Expandir threshold de compressão de contexto de 50 para 100 mensagens.
-- [ ] Implementar routing heurístico (detecção de tarefa simples) com confirmação do usuário.
-- [ ] Atualizar scripts Docker (pull_models.bat/.sh) para apagar modelos antigos e baixar qwen3:8b + qwen3:14b.
+- [x] Refatorar modelRegistry para suportar lista ordenada de fallbacks por agent/provider.
+- [x] Implementar lógica de fallback por modelo no PipelineEngine (detectar 429/RESOURCE_EXHAUSTED e tentar próximo modelo).
+- [x] Implementar fallback por API key após esgotar todos os modelos.
+- [x] Implementar Ollama como último fallback no modo Gemini (com detecção de Ollama offline).
+- [x] Implementar descarregamento explícito de modelo Ollama via API antes de carregar fallback.
+- [x] Unificar modelos Ollama em qwen3:14b (primário) e qwen3:8b (fallback).
+- [x] Implementar apelidos (nicknames) para API keys no /config e exibição no terminal.
+- [x] Implementar sistema de menções @ para arquivos e diretórios com resolução pelo CLI.
+- [x] Implementar deduplicação de menções já carregadas na sessão.
+- [x] Implementar /sessoes para listar, renomear e retomar qualquer sessão anterior.
+- [x] Expandir threshold de compressão de contexto de 50 para 100 mensagens.
+- [x] Implementar routing heurístico (detecção de tarefa simples) com confirmação do usuário.
+- [x] Atualizar scripts Docker (pull_models.bat/.sh) para apagar modelos antigos e baixar qwen3:8b + qwen3:14b.
+
+### Tasks formais (Fase 13)
+
+- [x] Task 018 - Fase 13.1 - Refatoração de Registry e Migração de Config de API Keys (`docs/task_018.md`)
+- [x] Task 019 - Fase 13.2 - Lógica de Fallback Multi-Modelo e API Keys no PipelineEngine (`docs/task_019.md`)
+- [x] Task 020 - Fase 13.3 - Resolução de Menções a Arquivos (@file) (`docs/task_020.md`)
+- [x] Task 021 - Fase 13.4 - Gerenciador de Sessões (/sessoes) e Limite de Contexto (`docs/task_021.md`)
+- [x] Task 022 - Fase 13.5 - Routing Heurístico e Atualização de Modelos Docker (`docs/task_022.md`)
