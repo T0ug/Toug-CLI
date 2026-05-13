@@ -32,6 +32,7 @@ export interface ProviderError {
 
 export type ProviderEvent =
     | { type: 'text_delta'; text: string }
+    | { type: 'thinking_delta'; text: string }
     | { type: 'tool_call'; call: ToolCall }
     | { type: 'done'; finishReason?: string }
     | { type: 'error'; error: ProviderError };

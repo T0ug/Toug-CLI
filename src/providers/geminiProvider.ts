@@ -139,12 +139,16 @@ export class GeminiProvider implements AIProvider {
                 const key = keys[activeKeyIndex % keys.length];
                 const ai = new GoogleGenAI({ apiKey: key.key });
 
+                const systemInstruction = firstSystemMessage ? { parts: [{ text: firstSystemMessage.content }] } : undefined;
+                const configManager = loadConfig();
+
                 const responseStream = await ai.models.generateContentStream({
                     model: request.model,
                     contents: safeContents as Content[],
                     config: {
                         systemInstruction,
                         tools: [{ functionDeclarations }],
+                        ...(configManager.showThinking && { thinkingConfig: { includeThoughts: true } })
                     }
                 });
 
@@ -153,7 +157,21 @@ export class GeminiProvider implements AIProvider {
                         return;
                     }
 
-                    if (chunk.text) {
+                    if (chunk.candidates && chunk.candidates[0]?.content?.parts) {
+                        for (const part of chunk.candidates[0].content.parts) {
+                            if ((part as any).thought === true && (part as any).text) {
+                                yield { type: 'thinking_delta', text: (part as any).text };
+                            } else if (!(part as any).thought && part.text) {
+                                // Usually if we enable includeThoughts, normal text might still just come in chunk.text, 
+                                // but if the SDK breaks it into parts where some are thought and some are not, we handle it here.
+                            }
+                        }
+                    }
+
+                    // For now, if chunk.text is populated and isn't just the thought, we yield it.
+                    // The SDK usually handles text directly. But if we extracted thought, chunk.text might also contain it.
+                    // Let's rely on standard chunk.text for the actual response.
+                    if (chunk.text && !(chunk as any).thought) {
                         yield { type: 'text_delta', text: chunk.text };
                     }
 

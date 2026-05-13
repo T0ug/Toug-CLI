@@ -164,6 +164,13 @@ export class PipelineEngine {
                                 break;
                             }
 
+                            if (event.type === 'thinking_delta') {
+                                if (config.showThinking) {
+                                    yield `${COLORS.DIM}${event.text}${COLORS.RESET}`;
+                                }
+                                continue;
+                            }
+
                             if (event.type !== 'text_delta') {
                                 continue;
                             }

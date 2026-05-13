@@ -1,29 +1,28 @@
 # Handoff
 
 ## Task
-- ID: 023
-- Nome: Fase 14.1 - Componente selectMenu e Fundação de Config
+- ID: 024
+- Nome: Fase 14.2 - Thinking Display nos Providers e PipelineEngine
 - Agente responsavel: Executor
 
 ## Objetivo
-Implementar a base do menu interativo (`selectMenu.ts`) com raw mode nativo e estender a interface de chat e o config com a cor `DIM` e a opção `showThinking`.
+Implementar a funcionalidade de "thinking" nos modelos que a suportam e exibi-la de forma translúcida no console, sem interferir no histórico da IA.
 
 ## Escopo Executado
-- O módulo `src/cli/selectMenu.ts` foi criado e implementa navegação interativa usando raw mode (`process.stdin.setRawMode(true)`). As opções são listadas e podem ser navegadas com setas, selecionadas com Enter, ou canceladas com Ctrl+C. O readline de chatInterface é pausado e retomado apropriadamente.
-- `src/cli/chatInterface.ts` foi modificado para exportar o objeto `rl` e adicionar `DIM: '\x1b[90m'` à constante `COLORS`.
-- `src/data/configManager.ts` foi atualizado para incluir a propriedade `showThinking: boolean` (default: true) na interface `TougConfig`, no `DEFAULT_CONFIG` e na lógica de normalização.
+- Atualizado `src/providers/types.ts` para incluir a tipagem de `{ type: 'thinking_delta'; text: string }`.
+- Modificado `src/engine/ollamaClient.ts` para enviar o header de think/options e processar mensagens de thinking de forma isolada, tipando os chunks com `OllamaStreamChunk`.
+- Atualizado `src/providers/ollamaProvider.ts` para emitir `thinking_delta`.
+- Atualizado `src/providers/geminiProvider.ts` para habilitar `thinkingConfig` baseado no config da aplicação e para extrair pensamentos das `parts` (ignorando-os no chunking padrão) e emitindo `thinking_delta`.
+- Atualizado `src/engine/pipelineEngine.ts` para capturar `thinking_delta`, mostrar em cinza (`COLORS.DIM`) se ativado no config, e ignorá-lo na montagem final do `assistantResponse`.
 
 ## Artefatos gerados
-- `src/cli/selectMenu.ts`
-- Modificação em `src/cli/chatInterface.ts`
-- Modificação em `src/data/configManager.ts`
-- Atualização em `docs/task_023.md` (marcado como concluída)
+- Modificações de código em 5 arquivos do pipeline de provider.
+- Atualização em `docs/task_024.md` (marcado como concluída).
 
 ## Validacao / Evidencia
-- A execução de `npm run build` ocorreu com sucesso e não retornou erros de compilação.
-- As mudanças atendem aos critérios de aceite definidos na Task 023. Não foram adicionadas dependências externas.
+- A execução de `npm run build` ocorreu com sucesso e não retornou erros.
 
 ## Proxima acao sugerida
 - Agente: Reviewer
 - Skill: review_task
-- Objetivo: Validar a implementação do componente selectMenu e fundação de config, garantindo que o escopo da Task 023 foi concluído com integridade.
+- Objetivo: Validar a implementação da funcionalidade de Thinking (Task 024) para o Ollama e Gemini, e conferir que o pipelineEngine trata adequadamente os deltas visuais em `COLORS.DIM`.

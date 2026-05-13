@@ -40,9 +40,9 @@ Discovery concluiu e o usuario confirmou o Understanding Lock para a Fase 14: th
 
 ### Proxima fase
 
-- Proxima acao: Reviewer valida a implementação da Task 023
+- Proxima acao: Reviewer valida a implementação da Task 024
 - Skill indicada: review_task
-- Status: **TASK 023 IMPLEMENTADA, AGUARDANDO REVIEWER**.
+- Status: **TASK 024 IMPLEMENTADA, AGUARDANDO REVIEWER**.
 
 ## Pendente manual
 

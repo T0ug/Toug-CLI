@@ -147,3 +147,6 @@ Implementar o suporte a thinking (raciocínio da IA) nos providers Ollama e Gemi
 ## Status
 
 - [ ] Não iniciada
+- [ ] Em andamento
+- [x] Concluída
+- [ ] Bloqueada

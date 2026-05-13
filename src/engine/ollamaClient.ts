@@ -5,6 +5,11 @@ export interface Message {
     content: string;
 }
 
+export interface OllamaStreamChunk {
+    type: 'thinking' | 'content';
+    text: string;
+}
+
 export class OllamaClient {
     private endpoint: string;
 
@@ -62,7 +67,7 @@ export class OllamaClient {
      * Creates an async generator to stream completions from the Ollama chat endpoint.
      * Yields the message content chunks recursively.
      */
-    public async *streamChat(model: string, messages: Message[], abortSignal?: AbortSignal): AsyncGenerator<string, void, unknown> {
+    public async *streamChat(model: string, messages: Message[], think: boolean = false, abortSignal?: AbortSignal): AsyncGenerator<OllamaStreamChunk, void, unknown> {
         const response = await fetch(`${this.endpoint}/api/chat`, {
             method: 'POST',
             headers: {
@@ -72,7 +77,8 @@ export class OllamaClient {
             body: JSON.stringify({
                 model,
                 messages,
-                stream: true
+                stream: true,
+                ...(think && { think: true })
             })
         });
 
@@ -106,8 +112,13 @@ export class OllamaClient {
 
                 try {
                     const parsed = JSON.parse(trimmed);
-                    if (parsed.message && parsed.message.content) {
-                        yield parsed.message.content;
+                    if (parsed.message) {
+                        if (parsed.message.thinking) {
+                            yield { type: 'thinking', text: parsed.message.thinking };
+                        }
+                        if (parsed.message.content) {
+                            yield { type: 'content', text: parsed.message.content };
+                        }
                     }
                 } catch (e) {
                     console.error("Falha ao parsear stream JSONL", e, "Linha:", trimmed);
@@ -119,8 +130,13 @@ export class OllamaClient {
         if (buffer.trim()) {
             try {
                 const parsed = JSON.parse(buffer.trim());
-                if (parsed.message && parsed.message.content) {
-                    yield parsed.message.content;
+                if (parsed.message) {
+                    if (parsed.message.thinking) {
+                        yield { type: 'thinking', text: parsed.message.thinking };
+                    }
+                    if (parsed.message.content) {
+                        yield { type: 'content', text: parsed.message.content };
+                    }
                 }
             } catch (e) {
                 // Ignore final fail parsing

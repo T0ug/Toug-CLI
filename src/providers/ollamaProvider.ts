@@ -1,5 +1,6 @@
 import { AIProvider, ProviderEvent, ProviderRequest } from './types';
 import { Message, OllamaClient } from '../engine/ollamaClient';
+import { loadConfig } from '../data/configManager';
 
 export class OllamaProvider implements AIProvider {
     public readonly name = 'ollama';
@@ -26,8 +27,13 @@ export class OllamaProvider implements AIProvider {
             }));
 
         try {
-            for await (const text of this.client.streamChat(request.model, messages, request.abortSignal)) {
-                yield { type: 'text_delta', text };
+            const config = loadConfig();
+            for await (const chunk of this.client.streamChat(request.model, messages, config.showThinking, request.abortSignal)) {
+                if (chunk.type === 'thinking') {
+                    yield { type: 'thinking_delta', text: chunk.text };
+                } else {
+                    yield { type: 'text_delta', text: chunk.text };
+                }
             }
 
             yield { type: 'done' };
