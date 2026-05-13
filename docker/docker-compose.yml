@@ -26,6 +26,8 @@ services:
     container_name: toug_cloudflared
     command: tunnel --config /etc/cloudflared/config.yml run
     restart: unless-stopped
+    environment:
+      - TUNNEL_TRANSPORT_PROTOCOL=http2
     volumes:
       - ./config.yml:/etc/cloudflared/config.yml
       - ./f01e1574-d27e-420e-9f8e-5091dc7d2125.json:/etc/cloudflared/f01e1574-d27e-420e-9f8e-5091dc7d2125.json
