@@ -1,13 +1,16 @@
 import { spawn } from 'node:child_process';
 
+const MAX_OUTPUT_CHARS = 8000;
+
 const getShellCommand = (command: string): { command: string; args: string[]; shell: boolean } => {
     if (process.platform !== 'win32') {
         return { command, args: [], shell: true };
     }
 
+    const utf8Prefix = '[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; ';
     return {
         command: 'powershell.exe',
-        args: ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', command],
+        args: ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', utf8Prefix + command],
         shell: false
     };
 };
@@ -17,10 +20,10 @@ export const executeShellCommand = async (command: string): Promise<string> => {
     if (isBackgroundCmd) {
         return new Promise((resolve) => {
             console.log(`\n\x1b[36m[System]\x1b[0m Iniciando servidor em background...\n`);
-            
+
             const shellCommand = getShellCommand(command);
             const child = spawn(shellCommand.command, shellCommand.args, { shell: shellCommand.shell, stdio: 'pipe' });
-            
+
             child.stdout.on('data', (data) => {
                 process.stdout.write(data);
             });
@@ -40,19 +43,39 @@ export const executeShellCommand = async (command: string): Promise<string> => {
 
     return new Promise((resolve) => {
         const shellCommand = getShellCommand(command);
-        const child = spawn(shellCommand.command, shellCommand.args, { shell: shellCommand.shell, stdio: 'inherit' });
+        const child = spawn(shellCommand.command, shellCommand.args, {
+            shell: shellCommand.shell,
+            stdio: ['inherit', 'pipe', 'pipe']
+        });
+
+        let output = '';
+
+        child.stdout.on('data', (data) => {
+            const text = data.toString('utf-8');
+            process.stdout.write(data);
+            output += text;
+        });
+
+        child.stderr.on('data', (data) => {
+            const text = data.toString('utf-8');
+            process.stderr.write(data);
+            output += text;
+        });
 
         child.on('error', (err) => {
             resolve(`[ERROR failed to execute tool command]: ${err.message}`);
         });
 
         child.on('close', (code) => {
+            let trimmed = output.trim();
+            if (trimmed.length > MAX_OUTPUT_CHARS) {
+                trimmed = trimmed.substring(0, MAX_OUTPUT_CHARS) + '\n...[output truncado em ' + MAX_OUTPUT_CHARS + ' caracteres]';
+            }
             if (code === 0) {
-                resolve('Comando executado com sucesso.');
+                resolve(trimmed || 'Comando executado com sucesso (sem output).');
                 return;
             }
-
-            resolve(`Comando finalizado com codigo ${code}.`);
+            resolve(trimmed ? `Comando finalizado com codigo ${code}.\n${trimmed}` : `Comando finalizado com codigo ${code}.`);
         });
     });
 };

@@ -301,9 +301,9 @@ export class PipelineEngine {
                     if (approved) {
                         yield `\n${COLORS.YELLOW}[Executando...]${COLORS.RESET}\n`;
                         const result = await executeShellCommand(command);
-                        this.history.push({ role: 'system', content: `Resultado do comando '${command}':\n${result}` });
+                        this.history.push({ role: 'user', content: `[TOOL RESULT] Resultado do comando '${command}':\n${result}` });
                     } else {
-                        this.history.push({ role: 'system', content: `Usuário RECUSOU execução de '${command}'.` });
+                        this.history.push({ role: 'user', content: `[TOOL RESULT] Usuário RECUSOU execução de '${command}'.` });
                     }
                     keepRunning = true;
                 }
@@ -314,7 +314,7 @@ export class PipelineEngine {
                     const filePath = readMatch[1].trim();
                     const cwd = process.cwd();
                     const content = readArtifact(filePath, cwd);
-                    this.history.push({ role: 'system', content: `Conteúdo de '${filePath}':\n${content}` });
+                    this.history.push({ role: 'user', content: `[TOOL RESULT] Conteúdo de '${filePath}':\n${content}` });
                     yield `\n${COLORS.CYAN}[Lido: ${filePath}]${COLORS.RESET}\n`;
                     keepRunning = true;
                 }
@@ -337,10 +337,10 @@ export class PipelineEngine {
                     if (approved) {
                         const cwd = process.cwd();
                         const result = writeArtifact(filePath, fileContent, cwd);
-                        this.history.push({ role: 'system', content: result });
+                        this.history.push({ role: 'user', content: `[TOOL RESULT] ${result}` });
                         yield `\n${COLORS.GREEN}[Gravado: ${filePath}]${COLORS.RESET}\n`;
                     } else {
-                        this.history.push({ role: 'system', content: `Usuário RECUSOU gravação de '${filePath}'.` });
+                        this.history.push({ role: 'user', content: `[TOOL RESULT] Usuário RECUSOU gravação de '${filePath}'.` });
                     }
                     keepRunning = true;
                 }

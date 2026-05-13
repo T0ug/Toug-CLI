@@ -10,6 +10,7 @@ import { saveSession, compressHistory, listSessions, loadSessionFile, deleteSess
 import { promptUser, printHeader, printError, closeChat, COLORS, onInterrupt } from './cli/chatInterface';
 import { selectMenu } from './cli/selectMenu';
 import { readArtifact } from './engine/artifactManager';
+import { MarkdownRenderer } from './cli/markdownRenderer';
 
 const CANCEL = '__cancel__';
 
@@ -457,10 +458,14 @@ async function main() {
             printHeader(activeTemp.role, activeTemp.model, activeTemp.provider, activeTemp.keyAlias);
 
             try {
+                const md = new MarkdownRenderer();
                 const stream = tempEngine.processInput(query);
                 for await (const chunk of stream) {
-                    process.stdout.write(chunk);
+                    const rendered = md.feed(chunk);
+                    if (rendered) process.stdout.write(rendered);
                 }
+                const remaining = md.flush();
+                if (remaining) process.stdout.write(remaining);
                 console.log('\n');
             } catch (e: any) {
                 printError('Falha na execucao Heuristica.', e.message);
@@ -497,10 +502,14 @@ async function main() {
         printHeader(active.role, active.model, active.provider, active.keyAlias);
 
         try {
+            const md = new MarkdownRenderer();
             const stream = engine.processInput(input);
             for await (const chunk of stream) {
-                process.stdout.write(chunk);
+                const rendered = md.feed(chunk);
+                if (rendered) process.stdout.write(rendered);
             }
+            const remaining = md.flush();
+            if (remaining) process.stdout.write(remaining);
             console.log('\n');
         } catch (e: any) {
             printError('Falha na execucao do Stream.', e.message);
