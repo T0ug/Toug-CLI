@@ -43,5 +43,16 @@
 | 039 | 2026-05-12 | Entrega da Task 016 aprovada | Reviewer validou estaticamente as seguranças implementáveis pelo Executor para a quebra de instâncias (AbortController vs SIGINT) sem bugs. | Reviewer |
 | 040 | 2026-05-12 | Task 017 orquestrada | Orchestrator mapeou a mitigação de early-writes nos agentes de Discovery e decretou fundação terminal para a Fase 12 | Orchestrator |
 | 041 | 2026-05-12 | Entrega da Task 017 aprovada e Conclusão da Fase 12 | Reviewer validou os escapes impositivos dentro das injeções puramente textuais de `agentLoader.ts`. Nenhuma colisão estrutural observada, atestando Fase 12 com êxito final | Reviewer |
+| 042 | 2026-05-12 | Fallback por modelo antes de fallback por API key | Modelos Gemini free tier esgotam rápido (2.5-pro: 2 RPM/50 RPD). Trocar modelo antes de key multiplica capacidade | Discovery |
+| 043 | 2026-05-12 | Modelos Ollama unificados em qwen3 | Descarte de gemma3:4b, deepseek-r1:8b, qwen2.5-coder:7b. Apenas qwen3:14b (primário) e qwen3:8b (fallback) mantidos | Discovery |
+| 044 | 2026-05-12 | Ollama como último fallback no modo Gemini | Cadeia: modelos Gemini → troca API key → repete → Ollama. Ollama offline apenas printa aviso | Discovery |
+| 045 | 2026-05-12 | Descarregamento explícito de modelo Ollama antes de fallback | Servidor CPU-only 32GB RAM não suporta 2 modelos simultâneos. CLI descarrega via API antes de carregar próximo | Discovery |
+| 046 | 2026-05-12 | Divisão multi-modelo por prompt adiada | Complexidade arquitetural incompatível com escopo atual. Registrada como evolução futura | Discovery |
+| 047 | 2026-05-12 | gemini-1.5-flash mantido como terceiro fallback Flash | Benchmarks confirmam superioridade sobre qwen3:14b local (HumanEval 74% vs 55-60%) | Discovery |
+| 048 | 2026-05-12 | Sistema de menções @ resolvido pelo CLI | Resolução de arquivos/diretórios feita pelo CLI sem consumo de tokens. Deduplicação por sessão | Discovery |
+| 049 | 2026-05-12 | Gestão de sessões com /sessoes | Listar, renomear e retomar qualquer sessão anterior, não apenas a mais recente | Discovery |
+| 050 | 2026-05-12 | Apelidos obrigatórios para API keys | Nickname no cadastro, exibido no terminal ao lado do modelo para identificação | Discovery |
+| 051 | 2026-05-12 | Contexto expandido de 50 para 100 mensagens | Threshold de compressão dobrado. keepLast mantém 10 | Discovery |
+| 052 | 2026-05-12 | Routing heurístico com confirmação do usuário | CLI detecta tarefa simples por regras, pergunta se quer desviar para Ollama. Sem automação silenciosa | Discovery |
 
 

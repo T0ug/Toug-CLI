@@ -1,29 +1,42 @@
 # Handoff
 
 ## Task
-- ID: 017
-- Nome: Fase 12.7 - Restrição de Artefatos Iniciais e Finalização da Fase 12
-- Agente responsavel: Executor
+- ID: Discovery Fase 13
+- Nome: Fase 13 - Discovery / clarify_intent
+- Agente responsavel: Discovery
 
 ## Objetivo
-Amansar o comportamento generativo precoce dos agentes primários (Discovery e Project Research) no CLI nativo para evitar a poluição irrestrita no CWD em ciclos iniciais não formatados.
+Transformar a intenção do usuário para a Fase 13 (fallback multi-modelo, menções de arquivo, gestão de sessões) em definição estruturada e validada.
 
 ## Escopo Executado
-- No `agentLoader.ts`, injetada linguagem de restrição contundente na propriedade correspondente ao `discovery`: obriga iteratividade com o usuário até bater um acordo consolidado, proibindo terminantemente a tool `write_file` adiantada.
-- Reforçada essa mesma contingência no agente `project_research`, instruído a pedir pré-permissão caso necessite manipular basepaths em projetos já povoados.
+- Pesquisados limites free tier de todos os modelos Gemini disponíveis.
+- Avaliados modelos Ollama do projeto para capacidade de function calling.
+- Pesquisado hardware do servidor (CPU-only, 32GB RAM, Ryzen 7 5700G).
+- Comparados benchmarks gemini-1.5-flash vs qwen3:14b (Gemini superior).
+- Definida cadeia de fallback: modelo → API key → Ollama.
+- Confirmado sistema de menções @ resolvido pelo CLI.
+- Confirmada gestão de sessões com /sessoes.
+- Confirmados apelidos para API keys.
+- Confirmado routing heurístico com confirmação do usuário.
+- Understanding Lock gerado e confirmado pelo usuário.
 
 ## Fora de Escopo Respeitado
-- Sem injeções ou bloqueios via REGEX de Engine; as travas estão sendo delegadas ao discernimento inerente da AI.
+- Divisão multi-modelo por prompt (evolução futura).
+- Nenhum código implementado.
+- Nenhuma arquitetura detalhada definida.
 
-## Artefatos afetados
-- `src/agents/agentLoader.ts`
-- `docs/task_017.md`
-- `docs/project_status.md`
+## Artefatos gerados
+- docs/idea_fase13.md
+- docs/scope_fase13.md
+- docs/non_goals_fase13.md
+- docs/decision_log.md (decisões 042-052)
+- docs/tasks.md (Fase 13 macro tasks)
+- docs/project_status.md (atualizado)
 
-## Validacao / Evidencia 
-- Source do AgentLoader remapeado validamente sem interrupções (`npm run build -> 0`).
+## Validacao / Evidencia
+- Understanding Lock apresentado e confirmado explicitamente pelo usuário.
 
 ## Proxima acao sugerida
-- Agente: Reviewer
-- Skill: `validate-delivery`
-- Objetivo: atestar a compilação do loader com os escapes textuais corretos blindando estaticamente a intenção dos prompts das Roles de pesquisa.
+- Agente: Architect
+- Skill: design_architecture
+- Objetivo: definir a arquitetura técnica detalhada para todas as funcionalidades da Fase 13, incluindo refatoração do modelRegistry, fallback chain, sistema de menções, gestão de sessões e atualização Docker.

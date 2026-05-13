@@ -46,3 +46,19 @@
 
 - [ ] Push final para o GitHub.
 - [ ] Publicacao no npm, opcional e manual pelo owner.
+
+## Fase 13 - Fallback Multi-Modelo, Menções de Arquivo e Gestão de Sessões
+
+- [ ] Refatorar modelRegistry para suportar lista ordenada de fallbacks por agent/provider.
+- [ ] Implementar lógica de fallback por modelo no PipelineEngine (detectar 429/RESOURCE_EXHAUSTED e tentar próximo modelo).
+- [ ] Implementar fallback por API key após esgotar todos os modelos.
+- [ ] Implementar Ollama como último fallback no modo Gemini (com detecção de Ollama offline).
+- [ ] Implementar descarregamento explícito de modelo Ollama via API antes de carregar fallback.
+- [ ] Unificar modelos Ollama em qwen3:14b (primário) e qwen3:8b (fallback).
+- [ ] Implementar apelidos (nicknames) para API keys no /config e exibição no terminal.
+- [ ] Implementar sistema de menções @ para arquivos e diretórios com resolução pelo CLI.
+- [ ] Implementar deduplicação de menções já carregadas na sessão.
+- [ ] Implementar /sessoes para listar, renomear e retomar qualquer sessão anterior.
+- [ ] Expandir threshold de compressão de contexto de 50 para 100 mensagens.
+- [ ] Implementar routing heurístico (detecção de tarefa simples) com confirmação do usuário.
+- [ ] Atualizar scripts Docker (pull_models.bat/.sh) para apagar modelos antigos e baixar qwen3:8b + qwen3:14b.

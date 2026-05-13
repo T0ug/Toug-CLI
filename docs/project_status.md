@@ -2,7 +2,7 @@
 
 ## Status atual
 
-MVP concluido e validado. O projeto entra agora em nova evolucao planejada: Fase 12 - Provedores Globais e Gemini.
+Fase 13 em andamento. Discovery concluído com Understanding Lock confirmado pelo usuário. Aguardando Architect para design_architecture.
 
 ## Concluido
 
@@ -20,32 +20,34 @@ MVP concluido e validado. O projeto entra agora em nova evolucao planejada: Fase
 - [x] README, package metadata e release polish.
 - [x] Otimizacao de modelos locais.
 - [x] Reforco de UX de ferramentas.
+- [x] Fase 12 - Provedores Globais e Gemini (todas 7 tasks validadas).
+- [x] Fase 13 - Discovery (Understanding Lock confirmado).
 
 ## Nova evolucao validada - 2026-05-12
 
-Discovery concluiu e o usuario confirmou o Understanding Lock para a Fase 12: provedores globais e Gemini.
+Discovery concluiu e o usuario confirmou o Understanding Lock para a Fase 13: fallback multi-modelo, menções de arquivo e gestão de sessões.
 
 ### Confirmado
 
-- Manter Ollama/local e adicionar Gemini.
-- Escolha de provedor global sempre no start.
-- `/config` altera provedor e API keys Gemini.
-- Configuracao somente global em `~/.toug-cli`.
-- Gemini usa SDK oficial `@google/genai`, streaming e Function Calling nativo.
-- Modelos por agente ficam fechados no codigo/regras do CLI.
-- Pipeline deve ser embutida no CLI, sem exigir `.agents`, `GEMINI.md` ou `PIPELINE_EXAMPLE` no projeto do usuario.
+- Fallback por modelo antes de fallback por API key.
+- Ollama como último fallback no modo Gemini (offline = aviso).
+- Modelos Ollama unificados em qwen3:14b (primário) e qwen3:8b (fallback).
+- Apelidos obrigatórios para API keys com exibição no terminal.
+- Sistema de menções @ resolvido pelo CLI sem consumo de tokens.
+- Deduplicação de menções por sessão.
+- /sessoes para listar, renomear e retomar qualquer sessão anterior.
+- Contexto expandido: 50 → 100 mensagens.
+- Routing heurístico com confirmação do usuário.
+- Atualização Docker: remover modelos antigos, manter qwen3:8b + qwen3:14b.
 
 ### Proxima fase
 
-**MVP 100% CONCLUÍDO.**
-Todas as 12 fases do projeto `T0ug CLI` foram cabalmente idealizadas, ramificadas em tasks atômicas, estruturadas através da engenharia local (TS/Node) interagindo cross-platform com ferramentas integradas de OS, Gemini SDK e Ollama nativo. O loop de validação contínua (Orchestrator -> Executor -> Reviewer) encontra-se vazio, sem tickets pendentes.
-
-- Última Task validada: `docs/task_017.md`
-- Proxima acao: `N/A` (Ações externas manuais).
-- Skill indicada: `N/A`
-- Status: **PROJETO FINALIZADO**.
+- Proxima acao: Architect + design_architecture para a Fase 13.
+- Skill indicada: design_architecture.
+- Status: **DISCOVERY CONCLUÍDO, AGUARDANDO ARQUITETURA**.
 
 ## Pendente manual
 
 - [ ] Push final para o GitHub.
 - [ ] Publicacao no npm, opcional e manual pelo owner.
+
