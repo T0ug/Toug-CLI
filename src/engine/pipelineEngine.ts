@@ -5,7 +5,7 @@ import { loadConfig } from '../data/configManager';
 import { promptUser, COLORS } from '../cli/chatInterface';
 import { executeShellCommand } from './toolRunner';
 import { readArtifact, writeArtifact } from './artifactManager';
-import { getModelForProviderRole } from '../agents/modelRegistry';
+import { getModelsForProviderRole } from '../agents/modelRegistry';
 import { createProvider } from './providerFactory';
 import { AIProvider, ProviderMessage } from '../providers/types';
 import { saveSession } from '../data/sessionManager';
@@ -52,7 +52,7 @@ export class PipelineEngine {
 
     private getModelForRole(role: AgentRole): string {
         const config = loadConfig();
-        return getModelForProviderRole(config.lastProvider, role);
+        return getModelsForProviderRole(config.lastProvider, role)[0];
     }
 
     public injectContext(content: string): void {
@@ -95,96 +95,166 @@ export class PipelineEngine {
 
                 const role = this.getRoleForState(this.state);
                 const agent = loadAgent(role);
-                const model = this.getModelForRole(role);
                 const config = loadConfig();
-                this.provider = createProvider(config.lastProvider);
 
                 const messages: ProviderMessage[] = [
                     { role: 'system', content: agent.systemPrompt },
                     ...this.history
                 ];
 
-                const stream = this.provider.stream({
-                    provider: config.lastProvider,
-                    model,
-                    messages,
-                    tools: [],
-                    metadata: {
-                        cwd: process.cwd(),
-                        state: this.state,
-                        agentRole: role
-                    }
-                });
                 let assistantResponse = '';
+                let generationSuccessful = false;
 
-                let tagBuffer = '';
-                let insideTag = false;
+                // Controle de Fallback
+                let currentProvider = config.lastProvider;
+                let modelsToTry = getModelsForProviderRole(currentProvider, role);
+                let currentModelIndex = 0;
+                let currentKeyIndex = 0;
 
-                for await (const event of stream) {
-                    if (this.currentAbortController?.signal.aborted) {
-                        yield `\n${COLORS.YELLOW}[SYSTEM] Geracao interrompida pelo usuario.${COLORS.RESET}\n`;
-                        keepRunning = false;
-                        break;
-                    }
+                while (!generationSuccessful && !this.currentAbortController?.signal.aborted) {
+                    this.provider = createProvider(currentProvider);
+                    const model = modelsToTry[currentModelIndex];
 
-                    if (event.type === 'error') {
-                        throw new Error(event.error.message);
-                    }
-
-                    if (event.type === 'done') {
-                        break;
-                    }
-
-                    if (event.type === 'tool_call') {
-                        const { name, args } = event.call;
-                        yield `\n${COLORS.MAGENTA}[Function Calling nativo detectado: ${name}]${COLORS.RESET}\n`;
-
-                        if (name === 'run_command') {
-                            assistantResponse += `<run_command>\n${args.command || ''}\n</run_command>`;
-                        } else if (name === 'read_file') {
-                            assistantResponse += `<read_file>\n${args.path || ''}\n</read_file>`;
-                        } else if (name === 'write_file') {
-                            assistantResponse += `<write_file path="${args.path || ''}">\n${args.content || ''}\n</write_file>`;
-                        }
-                        break;
-                    }
-
-                    if (event.type !== 'text_delta') {
-                        continue;
-                    }
-
-                    const chunk = event.text;
-                    assistantResponse += chunk;
-
-                    if (chunk.includes('<') || insideTag) {
-                        if (!insideTag) {
-                            insideTag = true;
-                            const splitIdx = chunk.indexOf('<');
-                            if (splitIdx > 0) {
-                                yield chunk.substring(0, splitIdx);
-                                tagBuffer += chunk.substring(splitIdx);
-                            } else {
-                                tagBuffer += chunk;
+                    try {
+                        const stream = this.provider.stream({
+                            provider: currentProvider,
+                            model,
+                            messages,
+                            tools: [],
+                            metadata: {
+                                cwd: process.cwd(),
+                                state: this.state,
+                                agentRole: role,
+                                apiKeyIndex: currentKeyIndex
                             }
+                        });
+                        
+                        assistantResponse = '';
+                        let tagBuffer = '';
+                        let insideTag = false;
+
+                        for await (const event of stream) {
+                            if (this.currentAbortController?.signal.aborted) {
+                                yield `\n${COLORS.YELLOW}[SYSTEM] Geracao interrompida pelo usuario.${COLORS.RESET}\n`;
+                                keepRunning = false;
+                                break;
+                            }
+
+                            if (event.type === 'error') {
+                                throw new Error(event.error.message);
+                            }
+
+                            if (event.type === 'done') {
+                                generationSuccessful = true;
+                                break;
+                            }
+
+                            if (event.type === 'tool_call') {
+                                const { name, args } = event.call;
+                                yield `\n${COLORS.MAGENTA}[Function Calling nativo detectado: ${name}]${COLORS.RESET}\n`;
+
+                                if (name === 'run_command') {
+                                    assistantResponse += `<run_command>\n${args.command || ''}\n</run_command>`;
+                                } else if (name === 'read_file') {
+                                    assistantResponse += `<read_file>\n${args.path || ''}\n</read_file>`;
+                                } else if (name === 'write_file') {
+                                    assistantResponse += `<write_file path="${args.path || ''}">\n${args.content || ''}\n</write_file>`;
+                                }
+                                generationSuccessful = true;
+                                break;
+                            }
+
+                            if (event.type !== 'text_delta') {
+                                continue;
+                            }
+
+                            const chunk = event.text;
+                            assistantResponse += chunk;
+
+                            if (chunk.includes('<') || insideTag) {
+                                if (!insideTag) {
+                                    insideTag = true;
+                                    const splitIdx = chunk.indexOf('<');
+                                    if (splitIdx > 0) {
+                                        yield chunk.substring(0, splitIdx);
+                                        tagBuffer += chunk.substring(splitIdx);
+                                    } else {
+                                        tagBuffer += chunk;
+                                    }
+                                } else {
+                                    tagBuffer += chunk;
+                                }
+
+                                const isOpening = /<(run_command|read_file|write_file|transition_state)/.test(tagBuffer);
+                                const isClosing = /<\/(run_command|read_file|write_file|transition_state)>/.test(tagBuffer);
+
+                                if (isClosing) {
+                                    insideTag = false;
+                                    yield `\n${COLORS.MAGENTA}[Ferramenta detectada. Interceptando e executando...]${COLORS.RESET}\n`;
+                                    generationSuccessful = true;
+                                    break;
+                                } else if (tagBuffer.length > 35 && !isOpening) {
+                                    yield tagBuffer;
+                                    tagBuffer = '';
+                                    insideTag = false;
+                                }
+                            } else {
+                                yield chunk;
+                            }
+                        }
+
+                        if (this.currentAbortController?.signal.aborted) {
+                            break;
+                        }
+
+                    } catch (error: any) {
+                        const errMsg = error.message.toLowerCase();
+                        const isExhausted = errMsg.includes('429') || errMsg.includes('503') || errMsg.includes('quota') || errMsg.includes('exhausted') || errMsg.includes('resource');
+                        
+                        if (currentProvider === 'gemini') {
+                            if (isExhausted) {
+                                const keyAlias = config.gemini.apiKeys[currentKeyIndex]?.alias || `Chave ${currentKeyIndex}`;
+                                yield `\n${COLORS.YELLOW}[Fallback] Limite atingido no Gemini (Model: ${model}, Key: ${keyAlias}). Tentando proxima rota...${COLORS.RESET}\n`;
+                                
+                                const maxKeys = config.gemini.apiKeys.length || 1;
+                                currentKeyIndex++;
+                                
+                                if (currentKeyIndex >= maxKeys) {
+                                    currentKeyIndex = 0;
+                                    currentModelIndex++;
+                                    
+                                    if (currentModelIndex >= modelsToTry.length) {
+                                        yield `\n${COLORS.YELLOW}[Fallback] Todas as rotas Gemini esgotadas. Trocando para Ollama local...${COLORS.RESET}\n`;
+                                        currentProvider = 'ollama';
+                                        modelsToTry = getModelsForProviderRole('ollama', role);
+                                        currentModelIndex = 0;
+                                    }
+                                }
+                                continue;
+                            } else {
+                                throw error; // Fatais
+                            }
+                        } else if (currentProvider === 'ollama') {
+                            yield `\n${COLORS.YELLOW}[Fallback] Erro no Ollama (Model: ${model}). Tentando proximo modelo...${COLORS.RESET}\n`;
+                            currentModelIndex++;
+                            
+                            if (currentModelIndex >= modelsToTry.length) {
+                                throw new Error(`Ollama falhou em todos os modelos de fallback. Ultimo erro: ${error.message}`);
+                            }
+                            
+                            const { OllamaClient } = await import('./ollamaClient');
+                            const client = new OllamaClient();
+                            yield `\n${COLORS.YELLOW}[SYSTEM] Descarregando modelo ${model} da RAM para liberar espaco...${COLORS.RESET}\n`;
+                            await client.unloadModel(model);
+                            continue;
                         } else {
-                            tagBuffer += chunk;
+                            throw error;
                         }
-
-                        const isOpening = /<(run_command|read_file|write_file|transition_state)/.test(tagBuffer);
-                        const isClosing = /<\/(run_command|read_file|write_file|transition_state)>/.test(tagBuffer);
-
-                        if (isClosing) {
-                            insideTag = false;
-                            yield `\n${COLORS.MAGENTA}[Ferramenta detectada. Interceptando e executando...]${COLORS.RESET}\n`;
-                            break; // Stop stream and process tool immediately
-                        } else if (tagBuffer.length > 35 && !isOpening) {
-                            yield tagBuffer;
-                            tagBuffer = '';
-                            insideTag = false;
-                        }
-                    } else {
-                        yield chunk;
                     }
+                }
+
+                if (!generationSuccessful) {
+                    break;
                 }
 
                 this.history.push({ role: 'assistant', content: assistantResponse });

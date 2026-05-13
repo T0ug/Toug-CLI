@@ -54,5 +54,6 @@
 | 050 | 2026-05-12 | Apelidos obrigatórios para API keys | Nickname no cadastro, exibido no terminal ao lado do modelo para identificação | Discovery |
 | 051 | 2026-05-12 | Contexto expandido de 50 para 100 mensagens | Threshold de compressão dobrado. keepLast mantém 10 | Discovery |
 | 052 | 2026-05-12 | Routing heurístico com confirmação do usuário | CLI detecta tarefa simples por regras, pergunta se quer desviar para Ollama. Sem automação silenciosa | Discovery |
-
-
+| 053 | 2026-05-12 | Pré-processamento de menções isolado no CLI | Resolução de arquivos `@` fará injeção de texto direto no prompt em vez de Tool Calling oculto no Gemini. Preserva tokens e isola provider | Architect |
+| 054 | 2026-05-12 | Lógica de fallback residente no PipelineEngine | O loop de retentativas ficará no orquestrador global para centralizar o fallback de API keys, modelos e até queda para o Ollama | Architect |
+| 055 | 2026-05-12 | Migração de Config nativa | Atualização do tipo array de strings para array de objetos `{key, alias}` com compatibilidade legada silenciosa | Architect |

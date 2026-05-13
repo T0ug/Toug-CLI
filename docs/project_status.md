@@ -42,9 +42,9 @@ Discovery concluiu e o usuario confirmou o Understanding Lock para a Fase 13: fa
 
 ### Proxima fase
 
-- Proxima acao: Architect + design_architecture para a Fase 13.
-- Skill indicada: design_architecture.
-- Status: **DISCOVERY CONCLUÍDO, AGUARDANDO ARQUITETURA**.
+- Proxima acao: Executor inicia a task_019.md (PipelineEngine Fallback)
+- Skill indicada: Nenhuma
+- Status: **TASK DEFINIDA, AGUARDANDO EXECUTOR**.
 
 ## Pendente manual
 

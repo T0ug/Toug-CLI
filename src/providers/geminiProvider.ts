@@ -137,7 +137,7 @@ export class GeminiProvider implements AIProvider {
         while (attempts < maxAttempts) {
             try {
                 const key = keys[activeKeyIndex % keys.length];
-                const ai = new GoogleGenAI({ apiKey: key });
+                const ai = new GoogleGenAI({ apiKey: key.key });
 
                 const responseStream = await ai.models.generateContentStream({
                     model: request.model,

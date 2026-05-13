@@ -25,6 +25,23 @@ export class OllamaClient {
     }
 
     /**
+     * Unloads a model from RAM to free up memory.
+     */
+    public async unloadModel(model: string): Promise<boolean> {
+        try {
+            const response = await fetch(`${this.endpoint}/api/generate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ model, keep_alive: 0 })
+            });
+            return response.ok;
+        } catch (error) {
+            console.error(`Erro ao descarregar modelo ${model}:`, error);
+            return false;
+        }
+    }
+
+    /**
      * Retrieves the list of available model tags natively installed in the Docker server.
      */
     public async getModels(): Promise<string[]> {

@@ -10,7 +10,7 @@ export interface TougConfig {
         endpoint: string;
     };
     gemini: {
-        apiKeys: string[];
+        apiKeys: { key: string; alias: string }[];
     };
     autoApproveMode: boolean;
 }
@@ -53,6 +53,19 @@ const isProviderName = (value: unknown): value is ProviderName => {
 const normalizeConfig = (raw: unknown): TougConfig => {
     const candidate = raw as Partial<TougConfig> & LegacyTougConfig;
 
+    let parsedApiKeys: { key: string; alias: string }[] = [];
+    if (candidate && candidate.configVersion === 2 && Array.isArray(candidate.gemini?.apiKeys)) {
+        parsedApiKeys = candidate.gemini.apiKeys.map((item: any, index: number) => {
+            if (typeof item === 'string') {
+                return { key: item, alias: `Key_Legacy_${index + 1}` };
+            }
+            if (item && typeof item.key === 'string' && typeof item.alias === 'string') {
+                return { key: item.key, alias: item.alias };
+            }
+            return null;
+        }).filter(Boolean) as { key: string; alias: string }[];
+    }
+
     if (candidate && candidate.configVersion === 2) {
         return {
             configVersion: 2,
@@ -61,7 +74,7 @@ const normalizeConfig = (raw: unknown): TougConfig => {
                 endpoint: candidate.ollama?.endpoint || candidate.ollamaEndpoint || DEFAULT_CONFIG.ollama.endpoint
             },
             gemini: {
-                apiKeys: Array.isArray(candidate.gemini?.apiKeys) ? candidate.gemini.apiKeys : []
+                apiKeys: parsedApiKeys
             },
             autoApproveMode: typeof candidate.autoApproveMode === 'boolean'
                 ? candidate.autoApproveMode

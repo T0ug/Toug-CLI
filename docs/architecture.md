@@ -1,477 +1,79 @@
-# Architecture - Toug CLI Provider Evolution
+# Arquitetura Técnica - Fase 13
 
-## 1. Visao Geral
+## 1. Visão Geral (Estrutura)
 
-O Toug CLI continua sendo uma CLI Node.js/TypeScript com pipeline forcada por state machine, mas passa a separar claramente:
+A Fase 13 introduz um sistema de resiliência e otimização de custos ao `Toug-CLI`. O diagrama lógico do fluxo de dados passa de linear para um fluxo com interceptadores locais e loops de repetição.
 
-- decisao de pipeline;
-- execucao de provider;
-- chamadas de ferramentas;
-- validacao de artefatos;
-- persistencia;
-- tratamento de erros.
+### Princípios da Solução
+- **Sem consumo inútil de tokens:** A resolução de arquivos via tags `@` e a filtragem de contexto duplicado ocorre de forma 100% nativa (Node.js `fs`).
+- **Resiliência em Camadas:** Modelos caem para modelos inferiores, que caem para novas chaves, que caem para inferência local (Ollama).
+- **Separação de Papéis:** O `Provider` cuida apenas de se conectar e reportar erros HTTP precisos. O `PipelineEngine` cuida de gerir as tentativas e alternar as configurações ativas.
 
-A arquitetura escolhida e a Abordagem 2: **Provider Layer + Tool Dispatcher + Safety Guard**.
+---
 
-Essa abordagem preserva o codigo atual, mas remove responsabilidades demais do `PipelineEngine`. O modelo nao decide quando trocar de agente; transicoes sao decisao deterministica do CLI.
+## 2. Componentes e Responsabilidades
 
-## 2. Camadas
+### `InputProcessor` (Novo Componente CLI)
+- **Caminho:** `src/cli/inputProcessor.ts`
+- **Função:** Interceptar a string bruta digitada pelo usuário antes de salvá-la no histórico oficial da IA. Executa expressões regulares para detectar padrões como `@nome_do_arquivo.ext` e `@/nome_da_pasta`.
+- **Comportamento:** Lê o sistema de arquivos recursivamente (com limite de segurança) e anexa os dados no formato `[Dados Locais Injetados: caminho] \n conteudo`. Aciona deduplicação checando se a mesma tag já existe na sessão atual.
 
-### CLI Layer
+### `PipelineEngine` (Roteador e Fallback Manager)
+- **Caminho:** `src/engine/pipelineEngine.ts`
+- **Função:** Orquestrar o ciclo de vida da geração.
+- **Modificações:**
+  - Instanciação de um laço `while` robusto ao redor da chamada do `stream`.
+  - Captura estruturada de erros para identificar se o erro foi de Rate Limit (`429`) ou Exaustão de Cota (`503`).
+  - Lógica de heurística (via função separada) para interceptar o turno: "Se prompt < limite E provedor == Gemini, perguntar ao usuário se quer forçar Ollama".
 
-Responsavel por interacao com o usuario:
+### `SessionManager` e `ConfigManager`
+- **Caminho:** `src/data/...`
+- **Função:** Gerir disco local.
+- **Modificações:**
+  - `TougConfig`: Passa a aceitar Array de Objetos para API Keys (suportando apelidos/nicknames).
+  - `sessionManager.ts`: Método `listSessions()` para exibir `/sessoes` com parse leve dos arquivos (apenas metadados), limiar de compressão sobe para 100 mensagens.
 
-- perguntar provider ao iniciar;
-- tratar `/config`;
-- tratar `/stop`;
-- tratar `Ctrl+C`;
-- renderizar chunks no terminal;
-- pedir aprovacoes;
-- exibir erros e status.
+### `ModelRegistry`
+- **Caminho:** `src/agents/modelRegistry.ts`
+- **Modificações:** Retorna `string[]` ordenado. (ex: `['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.5-flash-lite']`).
 
-### Pipeline Layer
+### `OllamaClient`
+- **Modificações:** Nova requisição `POST /api/generate` passando `{"model": "nome", "keep_alive": 0}` para forçar o unload da memória RAM local.
 
-Responsavel por orquestracao:
+---
 
-- manter o estado atual da pipeline;
-- resolver o agent ativo;
-- montar contexto;
-- chamar provider ativo;
-- gravar historico;
-- receber tool calls normalizados;
-- acionar validacao de artefatos;
-- pedir ao `PipelineController` decisao de avanco.
+## 3. Fluxo de Dados
 
-O `PipelineEngine` nao deve executar shell diretamente nem aceitar transicao arbitraria do modelo.
+1. Usuário digita texto ou `/sessoes`.
+2. Se `/sessoes`: loop nativo CLI exibe histórico.
+3. Se texto: `InputProcessor` resolve arquivos.
+4. Heurística de Roteamento avalia e pode forçar switch para Ollama.
+5. Inicia laço de Fallback:
+   - Tenta Modelo `0` com Key `0`.
+   - Se Erro 429/503: Tenta Modelo `0` com Key `1`.
+   - Se acabar keys: Tenta Modelo `1` com Key `0`.
+   - Se acabar tudo (Gemini): Tenta Ollama `14b`.
+   - Se falhar no Ollama `14b`: Faz unload, tenta `8b`.
+6. Stream retornado processa Tool Calls normalmente.
 
-### Pipeline Controller
+---
 
-Novo componente responsavel por regras deterministicas da pipeline:
+## 4. Persistência e Integrações
 
-- criterios de entrada e saida de cada fase;
-- artefatos obrigatorios;
-- validacao de `handoff.md`;
-- confirmacoes obrigatorias;
-- transicao automatica de estado;
-- feedback ao mesmo agente quando faltam evidencias.
-
-O modelo nao recebe uma ferramenta publica `transition_state`.
-
-### Provider Layer
-
-Responsavel por falar com modelos:
-
-- `OllamaProvider`;
-- `GeminiProvider`;
-- `ProviderFactory`;
-- contrato comum `AIProvider`;
-- streaming;
-- cancelamento por `AbortSignal`;
-- normalizacao de eventos.
-
-### Agent Rules Layer
-
-Responsavel por verdades versionadas do CLI:
-
-- prompts dos agentes;
-- skills embutidas;
-- workflows;
-- templates de artefatos;
-- regras da pipeline;
-- criterios de saida;
-- mapeamento provider + agent -> modelo.
-
-Projetos de usuario nao devem precisar de `.agents`, `GEMINI.md` ou `PIPELINE_EXAMPLE`.
-
-### Tool Layer
-
-Responsavel por ferramentas reais:
-
-- `run_command`;
-- `read_file`;
-- `write_file`;
-- parsing XML para Ollama;
-- function calling para Gemini;
-- despacho para executor interno comum.
-
-### Safety Layer
-
-Responsavel por classificacao de risco:
-
-- acesso dentro/fora da pasta do projeto;
-- comando PowerShell;
-- acao com indicio de admin;
-- leitura/escrita externa;
-- permissao ou bloqueio de auto-approve;
-- explicacao de risco ao usuario.
-
-### Persistence Layer
-
-Responsavel por:
-
-- config global em `~/.toug-cli/toug.config.json`;
-- sessoes em `~/.toug-cli/sessions`;
-- logs fatais em `~/.toug-cli/fatal-logs`;
-- artefatos do projeto em `<project-cwd>/docs`.
-
-### Error Handling Layer
-
-Responsavel por:
-
-- matriz de erros Gemini;
-- retry;
-- fallback entre API keys;
-- reducao de contexto;
-- cancelamento de mensagem;
-- log fatal;
-- encerramento controlado.
-
-## 3. Estrutura De Diretorios Proposta
-
-```text
-src/
-  cli/
-    chatInterface.ts
-    configFlow.ts
-    providerPrompt.ts
-  agents/
-    agentLoader.ts
-    modelRegistry.ts
-    artifactRules.ts
-    embedded/
-      prompts.ts
-      skills.ts
-      workflows.ts
-      templates.ts
-  engine/
-    pipelineEngine.ts
-    pipelineController.ts
-    artifactValidator.ts
-    providerFactory.ts
-  providers/
-    types.ts
-    ollamaProvider.ts
-    geminiProvider.ts
-  tools/
-    toolContracts.ts
-    toolDispatcher.ts
-    xmlToolParser.ts
-    safetyGuard.ts
-  data/
-    configManager.ts
-    sessionManager.ts
-    fatalLogManager.ts
-  errors/
-    geminiErrorPolicy.ts
-```
-
-## 4. Fluxo De Boot
-
-```text
-Usuario roda `toug`
-  -> ConfigManager carrega/migra config global
-  -> CLI pergunta provider
-  -> Enter usa ultimo provider salvo
-  -> se Gemini sem API key, abre fluxo de configuracao
-  -> ProjectDetector analisa cwd
-  -> SessionManager oferece restaurar sessao
-  -> PipelineController define estado inicial
-  -> CLI entra no prompt `Voce:`
-```
-
-Estados iniciais:
-
-- projeto com `docs/` validos: `ORCHESTRATING`;
-- projeto com codigo sem `docs/`: `PROJECT_RESEARCH`;
-- pasta vazia/novo projeto: `DISCOVERY`.
-
-## 5. Fluxo De Mensagem
-
-```text
-Usuario envia mensagem
-  -> SessionManager salva mensagem
-  -> PipelineEngine identifica estado
-  -> PipelineController resolve agent ativo
-  -> ModelRegistry resolve modelo
-  -> AgentRules monta contexto
-  -> Provider ativo inicia streaming
-  -> CLI imprime text_delta
-  -> ToolDispatcher executa tool_call quando houver
-  -> ArtifactValidator valida conclusao de fase
-  -> PipelineController decide continuar ou avancar
-  -> SessionManager salva cada evento relevante
-```
-
-## 6. Provedores
-
-### OllamaProvider
-
-- Usa `/api/chat`.
-- Mantem streaming JSONL.
-- Mantem XML como compatibilidade.
-- Usa `XmlToolParser` para detectar ferramentas.
-- Emite eventos normalizados.
-
-### GeminiProvider
-
-- Usa SDK oficial `@google/genai`.
-- Usa streaming sempre.
-- Declara ferramentas por Function Calling.
-- Converte function calls para `ToolCall`.
-- Usa `GeminiErrorPolicy` para retry/fallback.
-
-Ferramentas declaradas ao Gemini:
-
-- `run_command`;
-- `read_file`;
-- `write_file`.
-
-`transition_state` nao e ferramenta publica.
-
-## 7. Transicao De Agentes
-
-Transicoes sao privadas do `PipelineController`.
-
-O modelo pode:
-
-- gerar analise;
-- criar/editar artefatos;
-- produzir handoff;
-- responder perguntas;
-- pedir ferramentas permitidas.
-
-O modelo nao pode:
-
-- decidir que terminou a propria fase;
-- escolher o proximo agente;
-- chamar uma ferramenta publica de transicao.
-
-Cada fase possui:
-
-- agent responsavel;
-- artefatos obrigatorios;
-- handoff obrigatorio quando aplicavel;
-- criterios de saida;
-- proximo estado determinado pelo CLI.
-
-## 8. Artefatos E Handoff
-
-Todo agent pode criar artefatos. No fluxo principal, conclusao de fase exige artefatos validos.
-
-`handoff.md` e obrigatorio ao concluir fases principais da pipeline.
-
-Campos minimos do handoff:
-
-- task/fase;
-- agente responsavel;
-- objetivo;
-- escopo executado;
-- artefatos afetados;
-- evidencia;
-- pendencias/bloqueios;
-- proxima acao sugerida;
-- status.
-
-Se o handoff ou artefato obrigatorio estiver invalido:
-
-```text
-PipelineController bloqueia transicao
-  -> ArtifactValidator gera feedback
-  -> feedback entra no historico como system
-  -> mesmo agente continua para corrigir
-```
-
-## 9. Configuracao
-
-Arquivo global:
-
-```text
-~/.toug-cli/toug.config.json
-```
-
-Formato v2:
-
-```json
-{
-  "configVersion": 2,
-  "lastProvider": "ollama",
-  "ollama": {
-    "endpoint": "http://localhost:11434"
-  },
-  "gemini": {
-    "apiKeys": []
-  },
-  "autoApproveMode": false
-}
-```
-
-Config nao guarda:
-
-- modelos por agente;
-- pipeline customizada;
-- configuracao especifica por projeto.
-
-Config guarda:
-
-- ultimo provider;
-- endpoint Ollama;
-- API keys Gemini em texto puro;
-- auto-approve.
-
-## 10. Model Registry
-
-`src/agents/modelRegistry.ts` define modelos por provider/agente.
-
-Gemini:
-
-```text
-orchestrator     -> gemini-2.5-flash
-discovery        -> gemini-2.5-flash
-project_research -> gemini-2.5-flash
-architect        -> gemini-2.5-pro
-executor         -> gemini-2.5-pro
-reviewer         -> gemini-2.5-pro
-```
-
-Ollama deve preservar os modelos locais padrao atuais em codigo versionado.
-
-## 11. Sessoes
-
-Diretorio:
-
-```text
-~/.toug-cli/sessions/
-```
-
-A sessao deve salvar:
-
-- apos mensagem do usuario;
-- apos resposta do modelo;
-- apos tool result;
-- apos interrupcao;
-- apos transicao deterministica;
-- ao encerrar.
-
-Metadados minimos:
-
-- cwd;
-- state;
-- provider;
-- agentRole;
-- model;
-- history;
-- savedAt;
-- interrupted.
-
-## 12. Cancelamento
-
-`/stop` e `Ctrl+C` usam `AbortController`.
-
-Fluxo:
-
-```text
-CLI cria AbortController por geracao
-  -> signal chega ao provider
-  -> /stop ou Ctrl+C chama abort()
-  -> resposta parcial e salva
-  -> estado permanece igual
-  -> prompt volta para `Voce:`
-```
-
-## 13. Segurança De Ferramentas
-
-Todo caminho e resolvido contra `projectRoot`.
-
-Se o caminho resolvido estiver dentro do projeto:
-
-- pode ser considerado baixo risco se a tool nao for sensivel.
-
-Se estiver fora:
-
-- nunca usa auto-approve;
-- explica risco;
-- pede aprovacao explicita.
-
-Comandos sensiveis:
-
-- comando fora da pasta do projeto;
-- PowerShell;
-- acao com indicio de admin.
-
-Esses comandos sempre exigem aprovacao humana.
-
-## 14. Erros Gemini
-
-`GeminiErrorPolicy` aplica a matriz aprovada:
-
-- `400 INVALID_ARGUMENT`: log fatal e encerra sessao controladamente.
-- `400 FAILED_PRECONDITION`: proxima API key.
-- `403 PERMISSION_DENIED`: proxima API key.
-- `404 NOT_FOUND`: retry uma vez; se repetir, volta para `Voce:`.
-- `429 RESOURCE_EXHAUSTED`: proxima API key.
-- `500 INTERNAL`: retry uma vez; se repetir, perguntar reducao de contexto ou cancelar.
-- `503 UNAVAILABLE`: retry uma vez; se repetir, proxima API key.
-- `504 DEADLINE_EXCEEDED`: avisar e voltar para `Voce:`.
-- key vazada/bloqueada: perguntar se remove/desativa da config local.
-- safety/recitation: perguntar se remove/desativa da config local.
-
-Se todas as keys falharem, exibir cada API key completa e motivo da falha.
-
-## 15. Logs Fatais
-
-Qualquer erro fatal gera log `.txt`.
-
-Conteudo:
-
-- data/hora;
-- versao do CLI;
-- provider;
-- modelo;
-- agent;
-- state;
-- cwd;
-- erro bruto;
-- acao tomada;
-- historico;
-- config relevante;
-- API keys completas quando presentes.
-
-No Windows, abrir fluxo para o usuario escolher onde salvar. Se cancelar, manter copia em `~/.toug-cli/fatal-logs`.
-
-## 16. Reducao De Contexto
-
-Niveis:
-
-- leve;
-- media;
-- agressiva.
-
-Nunca remover:
-
-- estado da pipeline;
-- agent ativo;
-- regras e criterios da fase;
-- templates necessarios;
-- artefatos relevantes em `docs/`;
-- ultimos tool results;
-- ultimo handoff;
-- confirmacoes.
-
-## 17. Criterios De Aceite
-
-A Fase 12 esta arquiteturalmente correta quando:
-
-- usuario escolhe provider no start;
-- `/config` altera provider/API keys;
-- Gemini responde com streaming;
-- Gemini usa Function Calling;
-- Ollama continua funcionando;
-- modelos por agente vem do CLI;
-- tool calls passam por seguranca;
-- transicoes nao sao decididas pelo modelo;
-- handoff e validado antes da transicao;
-- sessao salva a cada mensagem;
-- `/stop` e `Ctrl+C` interrompem sem encerrar CLI;
-- erros Gemini seguem a matriz;
-- logs fatais sao gerados;
-- pipeline nao exige `.agents`, `GEMINI.md` ou `PIPELINE_EXAMPLE` no projeto.
+- **File System:** Uso restrito a `fs` e `path` nativos, sem abstrações pesadas.
+- **Docker:** O script `pull_models.bat/.sh` removerá os binários redundantes para otimização de disco, forçando ambiente padronizado.
+- **Migrations:** Leitura segura do `toug.config.json` legando chaves nativas para arrays tipados de aliases, sem quebra de experiência.
+
+---
+
+## 5. Tratamento de Erros
+
+- **Erros Fatais (400, 401, 403, 404):** Rompem o ciclo e devolvem alerta visual.
+- **Erros Temporários (429, 503):** Absorvidos silenciosamente pelo fallback (com apenas 1 linha de log em amarelo para feedback).
+- **Leitura de Arquivo Indisponível/Muito Grande:** Injeção textual do erro direto no prompt do LLM, para que o robô seja ciente de que o usuário errou o caminho ou excedeu os bytes.
+
+---
+
+## 6. Escalabilidade
+
+A arquitetura orientada a arrays iteráveis no `PipelineEngine` permite que um número "N" de novos provedores, modelos ou chaves de cota sejam adicionados sem refatorações lógicas, garantindo resiliência passiva extrema para usuários de tiers gratuitos.

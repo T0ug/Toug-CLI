@@ -1,42 +1,26 @@
 # Handoff
 
 ## Task
-- ID: Discovery Fase 13
-- Nome: Fase 13 - Discovery / clarify_intent
-- Agente responsavel: Discovery
+- ID: 019
+- Nome: Fase 13.2 - Lógica de Fallback Multi-Modelo e API Keys no PipelineEngine
+- Agente responsavel: Orchestrator
 
 ## Objetivo
-Transformar a intenção do usuário para a Fase 13 (fallback multi-modelo, menções de arquivo, gestão de sessões) em definição estruturada e validada.
+Delegar ao Executor a implementação da lógica central da Fase 13: a resiliência do `PipelineEngine`.
 
 ## Escopo Executado
-- Pesquisados limites free tier de todos os modelos Gemini disponíveis.
-- Avaliados modelos Ollama do projeto para capacidade de function calling.
-- Pesquisado hardware do servidor (CPU-only, 32GB RAM, Ryzen 7 5700G).
-- Comparados benchmarks gemini-1.5-flash vs qwen3:14b (Gemini superior).
-- Definida cadeia de fallback: modelo → API key → Ollama.
-- Confirmado sistema de menções @ resolvido pelo CLI.
-- Confirmada gestão de sessões com /sessoes.
-- Confirmados apelidos para API keys.
-- Confirmado routing heurístico com confirmação do usuário.
-- Understanding Lock gerado e confirmado pelo usuário.
-
-## Fora de Escopo Respeitado
-- Divisão multi-modelo por prompt (evolução futura).
-- Nenhum código implementado.
-- Nenhuma arquitetura detalhada definida.
+- O Orchestrator definiu rigorosamente as fronteiras de implementação da task 019.
+- Delimitou o que deve ser feito no `PipelineEngine` (Loop de fallback) e no `OllamaClient` (método de unload).
+- Excluiu expressamente Heurísticas e Menções (que pertencem a tasks futuras).
 
 ## Artefatos gerados
-- docs/idea_fase13.md
-- docs/scope_fase13.md
-- docs/non_goals_fase13.md
-- docs/decision_log.md (decisões 042-052)
-- docs/tasks.md (Fase 13 macro tasks)
-- docs/project_status.md (atualizado)
+- `docs/task_019.md`
+- Atualização do `docs/project_status.md`
 
 ## Validacao / Evidencia
-- Understanding Lock apresentado e confirmado explicitamente pelo usuário.
+- A task foi documentada seguindo o template do projeto e respeitando a arquitetura definida.
 
 ## Proxima acao sugerida
-- Agente: Architect
-- Skill: design_architecture
-- Objetivo: definir a arquitetura técnica detalhada para todas as funcionalidades da Fase 13, incluindo refatoração do modelRegistry, fallback chain, sistema de menções, gestão de sessões e atualização Docker.
+- Agente: Executor
+- Skill: Nenhuma
+- Objetivo: Ler a `task_019.md` e implementar o código correspondente no `pipelineEngine.ts` e `ollamaClient.ts`.

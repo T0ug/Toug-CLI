@@ -19,7 +19,7 @@ async function configWizard() {
         config.lastProvider = 'gemini';
         const key = await promptUser(`${COLORS.CYAN}Digite sua API Key do Gemini (opcional, ENTER para pular): ${COLORS.RESET}`);
         if (key.trim()) {
-            config.gemini.apiKeys.push(key.trim());
+            config.gemini.apiKeys.push({ key: key.trim(), alias: `Key_${config.gemini.apiKeys.length + 1}` });
         }
     } else {
         config.lastProvider = 'ollama';
@@ -67,7 +67,7 @@ async function editConfig() {
     } else if (choice === '3') {
         const key = await promptUser(`${COLORS.CYAN}Nova API Key Gemini: ${COLORS.RESET}`);
         if (key.trim()) {
-            config.gemini.apiKeys.push(key.trim());
+            config.gemini.apiKeys.push({ key: key.trim(), alias: `Key_${config.gemini.apiKeys.length + 1}` });
             saveConfig(config);
             console.log(`${COLORS.GREEN}Chave adicionada. Total de chaves: ${config.gemini.apiKeys.length}${COLORS.RESET}\n`);
         }

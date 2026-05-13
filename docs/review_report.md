@@ -1,17 +1,28 @@
-# Review Report - Toug CLI
+# Review Report
 
-## Resumo da Validação
+## Identificacao da Task
+- **Task ID:** 018
+- **Nome:** Fase 13.1 - Refatoração de Registry e Migração de Config de API Keys
 - **Data:** 2026-05-12
-- **Task Analisada:** 017 (Fase 12.7 - Restrição de Artefatos Iniciais e Finalização da Fase 12)
-- **Status:** ✅ APROVADO
-- **Agente:** Reviewer
 
-## Problemas Encontrados
-- Nenhum. As cadeias de prompts nos roles fundamentais do Loader (`discovery` e `project_research`) foram expandidas conservando compatibilidade TS e respeitando estritamente a pipeline XML subjacente estabelecida globalmente.
+## Resumo da Entrega
+O Executor alterou a tipagem base de `apiKeys` (de `string[]` para `{ key: string, alias: string }[]`) e de `modelRegistry` (de `string` para `string[]`). Também foi implementada a função retroativa em `normalizeConfig` para converter chaves em strings planas antigas em objetos automaticamente. Ajustes pontuais foram feitos em outros módulos apenas para compilar corretamente. O projeto passou no build.
 
-## Justificativa Técnica
-- Os modificadores impositivos que ordenam permissão de base e confirmação prévia operam de forma isolada, orientados ao framework conversacional do modelo. O sistema já está inteiramente encapsulado em `src/` limitando as dependências de JSONs dispersos (como demandado e concluído na Fase 11 e reforçado agora).
-- Esse ponto abrange plenamente todas as check-lists traçadas na Fase 12 Macro (Limites SIGINT e Sandbox em T016 combinados a essas imposições estáticas configuram maturidade do CLI sobre prebendas Cloud).
+## Análise
+### 1. Funcional
+- **A task foi cumprida?** Sim. Os arrays do fallback estão configurados com exatidão (`qwen3:14b`, `qwen3:8b` para Ollama e a cascata de Gemini). A migração funciona.
 
-## Recomendações
-- DECLARO A FASE 12 CONCLUÍDA NO PROJETO T0UG CLI. O pipeline de back-end / core integration / Ollama+Gemini interoperation encontra-se blindado. Emancipo a fila para o **Orchestrator** que deve, enfim, mirar a **Fase 13** da arquitetura.
+### 2. Estrutural
+- **A arquitetura foi respeitada?** Sim. As lógicas adicionadas não introduzem dependências novas e preparam o terreno limpo para o `PipelineEngine` atuar.
+
+### 3. Escopo
+- **Houve desvio da task?** Não. Nenhuma lógica prematura de loop foi inserida no `PipelineEngine`. Foi usado `[0]` como stub correto.
+
+### 4. Consistência
+- **O código contradiz algo existente?** Não. A solução mantém compatibilidade com os `AgentRoles` e com `TougConfig` pré-existentes.
+
+## Decisão
+- **Status:** [x] Aprovado
+
+## Pontos de Correção
+Nenhum ponto de correção necessário. O código atende a todos os critérios e prepara de forma limpa a base de configuração.
