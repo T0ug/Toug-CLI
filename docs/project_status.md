@@ -2,7 +2,7 @@
 
 ## Status atual
 
-Fase 15 concluida e validada sem ressalvas pelo owner apos validacao manual. Hotfixes posteriores aplicados para abertura visual do terminal persistente no Windows Terminal, leitura concorrente de `terminal.log`, isolamento do gatilho de terminal antes de enviar contexto a IA e bloqueio de transicoes de pipeline iniciadas pelo modelo foram confirmados.
+Fase 15 concluida e validada sem ressalvas pelo owner apos validacao manual. Hotfixes posteriores aplicados para abertura visual do terminal persistente no Windows Terminal, leitura concorrente de `terminal.log`, isolamento do gatilho de terminal antes de enviar contexto a IA, bloqueio de transicoes de pipeline iniciadas pelo modelo, atualizacao do fallback global para Gemini 3, feedback de rota bem-sucedida e preferencia de inicializacao em Windows Terminal foram confirmados.
 
 Task 027 concluida e confirmada. Task 028 implementada e aprovada. Task 029 implementada e aprovada. Task 030 implementada e aprovada. Task 031 implementada e aprovada. Task 032 aprovada sem ressalvas.
 
@@ -46,7 +46,7 @@ Understanding Lock confirmado para Fase 15.
 - Terminal de sessao antiga reabre apenas por `/terminal` ou comando da IA.
 - Reabertura usa diretorio inicial da sessao, sem restaurar estado vivo.
 - `/help` lista comandos existentes.
-- Fallback unico para todos os agentes: Gemini 2.5 Pro, Gemini 2.5 Flash, Gemini 2 Flash, Gemini 2.5 Flash Lite, Gemini 2 Flash Lite, qwen3:14b, qwen3:8b.
+- Fallback unico para todos os agentes: Gemini 3.1 Pro Preview, Gemini 3 Flash Preview, Gemini 2.5 Pro, Gemini 3.1 Flash-Lite, Gemini 2.5 Flash, Gemini 2.5 Flash-Lite, Gemini 2 Flash, Gemini 2 Flash-Lite, qwen3:14b, qwen3:8b.
 - Logs serao enviados brutos para IA, sem redaction automatica.
 - Autocomplete de mencoes fica fora desta fase.
 
@@ -57,6 +57,9 @@ Understanding Lock confirmado para Fase 15.
 - Hotfix: leituras de `terminal.log` agora fazem retry curto em `EBUSY`/`EPERM`/`EACCES`, evitando que `run_command` retorne erro enquanto o runner ainda escreve no log.
 - Hotfix: o gatilho de terminal e consumido pelo CLI; a IA recebe apenas o log anexado e ferramentas sao bloqueadas nessa rodada salvo nova acao explicita do usuario.
 - Hotfix: `/status` e perguntas sobre o estado atual da pipeline sao respondidas pelo CLI, e `transition_state` vindo do modelo e bloqueado sem alterar estado.
+- Ajuste posterior: fallback global atualizado para priorizar Gemini 3 conforme disponibilidade atual da Gemini API, mantendo Qwen3 via Ollama no final.
+- Ajuste posterior: quando uma rota de fallback gera resposta com sucesso, o CLI informa provider, modelo e key usada.
+- Ajuste posterior: ao executar `toug` pelo `cmd.exe` classico no Windows, o CLI oferece migrar para Windows Terminal, pode instalar via `winget` com confirmacao e pode salvar preferencia interna para relancar automaticamente no Windows Terminal.
 - Ressalvas: encerradas por validacao manual do owner em 2026-05-14.
 - Proxima acao: push final para o GitHub, se aprovado pelo owner.
 
@@ -64,3 +67,36 @@ Understanding Lock confirmado para Fase 15.
 
 - [ ] Push final para o GitHub.
 - [ ] Publicacao no npm, opcional e manual pelo owner.
+
+## Ajuste posterior - 2026-05-14
+
+- Versao do pacote atualizada para `1.1.14`.
+- Ordem global de fallback atualizada:
+  1. `gemini-3.1-pro-preview`
+  2. `gemini-3-flash-preview`
+  3. `gemini-2.5-pro`
+  4. `gemini-3.1-flash-lite`
+  5. `gemini-2.5-flash`
+  6. `gemini-2.5-flash-lite`
+  7. `gemini-2.0-flash`
+  8. `gemini-2.0-flash-lite`
+  9. `qwen3:14b`
+  10. `qwen3:8b`
+- Observacao: `gemini-3.1-pro-preview` e usado como ID real de API para Gemini 3.1 Pro; se a key nao tiver acesso/cota, o fallback segue para a proxima rota.
+- Feedback de sucesso de fallback adicionado:
+  - Gemini: `[Fallback] Rota bem-sucedida: Gemini (Model: <modelo>, Key: <alias>).`
+  - Ollama: `[Fallback] Rota bem-sucedida: Ollama (Model: <modelo>).`
+
+## Ajuste posterior 2 - 2026-05-14
+
+- Versao do pacote atualizada para `1.1.16`.
+- Inicializacao via `cmd.exe` classico no Windows agora:
+  - detecta se ja esta em Windows Terminal por `WT_SESSION`;
+  - se `wt.exe` existe, pergunta se deve prosseguir no Windows Terminal;
+  - permite "Nao perguntar novamente" com confirmacao extra;
+  - salva preferencia interna `windowsTerminal.autoLaunch`;
+  - relanca o mesmo comando no Windows Terminal e encerra o processo atual;
+  - se `wt.exe` nao existe, pergunta se deve instalar via `winget install --id Microsoft.WindowsTerminal -e`;
+  - apos instalacao bem-sucedida, salva a preferencia interna e relanca no Windows Terminal quando `wt.exe` estiver disponivel.
+- Essa preferencia nao aparece no `/config`.
+- Hotfix `1.1.16`: a deteccao deixou de depender de `CMDCMDLINE`, que pode nao existir quando o comando global do npm chama `node ...\node_modules\toug-cli\dist\index.js`. Agora usa Windows interativo fora do Windows Terminal, ignorando `npm run`.

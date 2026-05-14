@@ -22,6 +22,13 @@
 - [ ] Push final para o GitHub.
 - [ ] Publicacao no npm, opcional e manual pelo owner.
 
+## Ajustes pos-Fase 15
+
+- [x] Task 033 - Atualizar fallback global para Gemini 3 e versionar pacote como `1.1.13` (`docs/task_033.md`).
+- [x] Task 034 - Exibir rota de fallback bem-sucedida e versionar pacote como `1.1.14` (`docs/task_034.md`).
+- [x] Task 035 - Preferir Windows Terminal ao iniciar via `cmd.exe` e versionar pacote como `1.1.15` (`docs/task_035.md`).
+- [x] Task 036 - Corrigir deteccao de console Windows no pacote npm global e versionar pacote como `1.1.16` (`docs/task_036.md`).
+
 ## Fase 12 - Provedores Globais e Gemini
 
 Status: concluida e validada.

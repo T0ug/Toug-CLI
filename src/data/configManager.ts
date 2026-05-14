@@ -14,6 +14,9 @@ export interface TougConfig {
     };
     autoApproveMode: boolean;
     showThinking: boolean;
+    windowsTerminal: {
+        autoLaunch: boolean;
+    };
 }
 
 interface LegacyTougConfig {
@@ -32,7 +35,10 @@ const DEFAULT_CONFIG: TougConfig = {
         apiKeys: []
     },
     autoApproveMode: false,
-    showThinking: true
+    showThinking: true,
+    windowsTerminal: {
+        autoLaunch: false
+    }
 };
 
 export const getConfigPath = (): string => {
@@ -83,7 +89,12 @@ const normalizeConfig = (raw: unknown): TougConfig => {
                 : DEFAULT_CONFIG.autoApproveMode,
             showThinking: typeof candidate.showThinking === 'boolean'
                 ? candidate.showThinking
-                : DEFAULT_CONFIG.showThinking
+                : DEFAULT_CONFIG.showThinking,
+            windowsTerminal: {
+                autoLaunch: typeof candidate.windowsTerminal?.autoLaunch === 'boolean'
+                    ? candidate.windowsTerminal.autoLaunch
+                    : DEFAULT_CONFIG.windowsTerminal.autoLaunch
+            }
         };
     }
 
@@ -97,7 +108,12 @@ const normalizeConfig = (raw: unknown): TougConfig => {
             : DEFAULT_CONFIG.autoApproveMode,
         showThinking: typeof candidate?.showThinking === 'boolean'
             ? candidate.showThinking
-            : DEFAULT_CONFIG.showThinking
+            : DEFAULT_CONFIG.showThinking,
+        windowsTerminal: {
+            autoLaunch: typeof candidate?.windowsTerminal?.autoLaunch === 'boolean'
+                ? candidate.windowsTerminal.autoLaunch
+                : DEFAULT_CONFIG.windowsTerminal.autoLaunch
+        }
     };
 };
 

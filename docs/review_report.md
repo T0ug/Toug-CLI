@@ -19,15 +19,18 @@
 - `src/index.ts` contem `/terminal`, `/help`, `appendTerminalMentions()` e trata `@terminal` antes do parser generico de `@arquivo`.
 - `src/index.ts` lista no `/help`: `/exit`, `/menu`, `/config`, `/sessoes`, `/terminal`, `/help`, `?pergunta`, `@arquivo`, `@terminal` e `@terminal:N`.
 - Busca estatica confirmou ausencia de listas diferentes por agente em `modelRegistry`.
-- `src/agents/modelRegistry.ts` exporta a ordem global:
-  1. `gemini-2.5-pro`
-  2. `gemini-2.5-flash`
-  3. `gemini-2.0-flash`
-  4. `gemini-2.5-flash-lite`
-  5. `gemini-2.0-flash-lite`
-  6. `qwen3:14b`
-  7. `qwen3:8b`
-- Validacao com `PipelineEngine.getActiveConfig()` e config Gemini temporaria confirmou `gemini-2.5-pro` como modelo inicial para:
+- `src/agents/modelRegistry.ts` exporta a ordem global. A ordem posterior atualizada para `1.1.13` e:
+  1. `gemini-3.1-pro-preview`
+  2. `gemini-3-flash-preview`
+  3. `gemini-2.5-pro`
+  4. `gemini-3.1-flash-lite`
+  5. `gemini-2.5-flash`
+  6. `gemini-2.5-flash-lite`
+  7. `gemini-2.0-flash`
+  8. `gemini-2.0-flash-lite`
+  9. `qwen3:14b`
+  10. `qwen3:8b`
+- Validacao com `PipelineEngine.getActiveConfig()` e config Gemini temporaria confirmou o modelo inicial para:
   - Orchestrator;
   - Discovery;
   - Project Research;
@@ -124,6 +127,61 @@ Fora de escopo preservado:
 
 - Owner confirmou a Fase 15 como validada sem ressalvas.
 - Estado documental consolidado em `project_status.md`, `handoff.md`, `tasks.md`, `review_report.md` e `decision_log.md`.
+
+## Atualizacao posterior 6
+
+- Fallback global atualizado para priorizar Gemini 3:
+  - `gemini-3.1-pro-preview`;
+  - `gemini-3-flash-preview`;
+  - `gemini-3.1-flash-lite`.
+- Rotas Gemini 2.5/2.0 e Qwen3 permanecem como fallback.
+- Pacote versionado para `1.1.13`.
+- `npx tsc --noEmit` passou.
+- `npm run build` passou apos permissao elevada para escrita em `dist/`.
+- Validacao runtime em `dist/agents/modelRegistry.js` confirmou a ordem exportada.
+
+## Atualizacao posterior 7
+
+- `PipelineEngine` passou a informar a rota bem-sucedida apos fallback:
+  - Gemini: provider, modelo e alias da key;
+  - Ollama: provider e modelo.
+- Pacote versionado para `1.1.14`.
+- `npx tsc --noEmit` passou.
+- `npm run build` passou apos permissao elevada para escrita em `dist/`.
+- `dist/engine/pipelineEngine.js` contem as mensagens `Rota bem-sucedida` para Gemini e Ollama.
+
+## Atualizacao posterior 8
+
+- Inicializacao via `cmd.exe` classico no Windows passou a preferir Windows Terminal.
+- `windowsTerminal.autoLaunch` foi adicionado ao config global como preferencia interna, sem entrada no `/config`.
+- Fluxo com `wt.exe` instalado:
+  - pergunta se aceita prosseguir para Windows Terminal;
+  - opcao "Nao perguntar novamente" exige confirmacao extra;
+  - em caso afirmativo, relanca no Windows Terminal e encerra o processo atual.
+- Fluxo sem `wt.exe`:
+  - pergunta se deseja instalar Windows Terminal;
+  - se confirmado, executa `winget install --id Microsoft.WindowsTerminal -e`;
+  - apos sucesso, salva auto launch e tenta relancar.
+- Pacote versionado para `1.1.15`.
+- `npx tsc --noEmit` passou.
+- `npm run build` passou apos permissao elevada para escrita em `dist/`.
+- `dist/index.js` contem `ensureWindowsTerminalHost`, `TOUG_WT_RELAUNCHED`, `winget` e `windowsTerminal.autoLaunch`.
+- `dist/data/configManager.js` contem normalizacao de `windowsTerminal.autoLaunch`.
+
+## Atualizacao posterior 9
+
+- Hotfix aplicado para o caso real do pacote npm global em Windows 10.
+- A deteccao anterior dependia de `CMDCMDLINE`, mas o shim global do npm pode iniciar `node ...\node_modules\toug-cli\dist\index.js` sem essa variavel confiavel.
+- A deteccao agora usa:
+  - Windows;
+  - fora do Windows Terminal;
+  - fora de `npm run`;
+  - stdin/stdout interativos;
+  - flag anti-loop ausente.
+- Pacote versionado para `1.1.16`.
+- `npx tsc --noEmit` passou.
+- `npm run build` passou apos permissao elevada para escrita em `dist/`.
+- `dist/index.js` contem `shouldPreferWindowsTerminalHost` sem dependencia de `CMDCMDLINE`.
 
 ## Decisao
 

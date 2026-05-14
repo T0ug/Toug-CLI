@@ -18,14 +18,17 @@
 - Ao carregar uma sessao anterior, manter acesso ao log antigo via `@terminal`.
 - Reabrir terminal de sessao antiga somente quando o usuario usar `/terminal` ou quando a IA executar comando.
 - Implementar `/help` com lista dos comandos existentes e descricao curta.
-- Ajustar fallback de modelos para todos os agentes na ordem:
-  1. `gemini-2.5-pro`
-  2. `gemini-2.5-flash`
-  3. `gemini-2.0-flash`
-  4. `gemini-2.5-flash-lite`
-  5. `gemini-2.0-flash-lite`
-  6. `qwen3:14b`
-  7. `qwen3:8b`
+- Ajustar fallback de modelos para todos os agentes na ordem atual:
+  1. `gemini-3.1-pro-preview`
+  2. `gemini-3-flash-preview`
+  3. `gemini-2.5-pro`
+  4. `gemini-3.1-flash-lite`
+  5. `gemini-2.5-flash`
+  6. `gemini-2.5-flash-lite`
+  7. `gemini-2.0-flash`
+  8. `gemini-2.0-flash-lite`
+  9. `qwen3:14b`
+  10. `qwen3:8b`
 - Usar o endpoint Ollama configurado para os modelos Qwen.
 
 ## Requisitos nao funcionais
@@ -44,4 +47,3 @@
 - O log bruto e a fonte de verdade e pode conter informacoes sensiveis.
 - O usuario aceita envio de log bruto para providers cloud quando `@terminal` for usado.
 - Autocomplete de mencoes de arquivos fica fora desta fase.
-

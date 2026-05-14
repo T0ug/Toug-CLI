@@ -52,13 +52,16 @@ A Fase 15 deve introduzir uma camada dedicada para terminal persistente, separad
 - Registry/fallback de modelos (`src/agents/modelRegistry.ts` e `PipelineEngine`)
   - Passa a usar uma ordem unica para todos os agentes.
   - Gemini e Ollama continuam como providers separados, mas a sequencia logica de fallback deve ser unica:
-    1. `gemini-2.5-pro`
-    2. `gemini-2.5-flash`
-    3. `gemini-2.0-flash`
-    4. `gemini-2.5-flash-lite`
-    5. `gemini-2.0-flash-lite`
-    6. `qwen3:14b`
-    7. `qwen3:8b`
+    1. `gemini-3.1-pro-preview`
+    2. `gemini-3-flash-preview`
+    3. `gemini-2.5-pro`
+    4. `gemini-3.1-flash-lite`
+    5. `gemini-2.5-flash`
+    6. `gemini-2.5-flash-lite`
+    7. `gemini-2.0-flash`
+    8. `gemini-2.0-flash-lite`
+    9. `qwen3:14b`
+    10. `qwen3:8b`
 
 ### Artefatos por sessao
 
@@ -295,10 +298,13 @@ Contrato esperado:
 
 ```ts
 const GLOBAL_FALLBACK_MODELS = [
+  { provider: 'gemini', model: 'gemini-3.1-pro-preview' },
+  { provider: 'gemini', model: 'gemini-3-flash-preview' },
   { provider: 'gemini', model: 'gemini-2.5-pro' },
+  { provider: 'gemini', model: 'gemini-3.1-flash-lite' },
   { provider: 'gemini', model: 'gemini-2.5-flash' },
-  { provider: 'gemini', model: 'gemini-2.0-flash' },
   { provider: 'gemini', model: 'gemini-2.5-flash-lite' },
+  { provider: 'gemini', model: 'gemini-2.0-flash' },
   { provider: 'gemini', model: 'gemini-2.0-flash-lite' },
   { provider: 'ollama', model: 'qwen3:14b' },
   { provider: 'ollama', model: 'qwen3:8b' }
@@ -777,13 +783,16 @@ Mesmo assim, para proteger estabilidade do CLI:
 ### Validacao de fallback
 
 1. Configurar provider Gemini.
-2. Confirmar que o primeiro modelo exibido para qualquer agente e `gemini-2.5-pro`.
+2. Confirmar que o primeiro modelo exibido para qualquer agente e `gemini-3.1-pro-preview`.
 3. Simular ou provocar falha de quota em Gemini.
 4. Confirmar ordem:
+   - `gemini-3.1-pro-preview`;
+   - `gemini-3-flash-preview`;
    - `gemini-2.5-pro`;
+   - `gemini-3.1-flash-lite`;
    - `gemini-2.5-flash`;
-   - `gemini-2.0-flash`;
    - `gemini-2.5-flash-lite`;
+   - `gemini-2.0-flash`;
    - `gemini-2.0-flash-lite`;
    - `qwen3:14b`;
    - `qwen3:8b`.

@@ -6,10 +6,13 @@ export interface ModelRoute {
 }
 
 export const GLOBAL_FALLBACK_MODELS: ModelRoute[] = [
+    { provider: 'gemini', model: 'gemini-3.1-pro-preview' },
+    { provider: 'gemini', model: 'gemini-3-flash-preview' },
     { provider: 'gemini', model: 'gemini-2.5-pro' },
+    { provider: 'gemini', model: 'gemini-3.1-flash-lite' },
     { provider: 'gemini', model: 'gemini-2.5-flash' },
-    { provider: 'gemini', model: 'gemini-2.0-flash' },
     { provider: 'gemini', model: 'gemini-2.5-flash-lite' },
+    { provider: 'gemini', model: 'gemini-2.0-flash' },
     { provider: 'gemini', model: 'gemini-2.0-flash-lite' },
     { provider: 'ollama', model: 'qwen3:14b' },
     { provider: 'ollama', model: 'qwen3:8b' }

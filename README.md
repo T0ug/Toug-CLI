@@ -4,7 +4,7 @@ Assistente de desenvolvimento por IA no terminal, com pipeline disciplinada, pro
 
 O Toug CLI foi criado para trabalhar em projetos de software sem depender apenas da conversa do chat. O estado real do projeto fica em `docs/`, a pipeline vive em `.agents/`, e a interface de trabalho e o terminal. A IA pode pesquisar, arquitetar, executar e revisar, mas sempre dentro de papeis definidos e com ferramentas controladas.
 
-Versao atual do projeto: `1.1.12`.
+Versao atual do projeto: `1.1.16`.
 
 Estado atual: **Fase 15 concluida e validada sem ressalvas pelo owner em 2026-05-14**.
 
@@ -106,9 +106,11 @@ O usuario nao precisa escolher modelo por agente. A ordem de fallback e unica pa
 
 - **Pipeline disciplinada**: state machine com papeis claros.
 - **Gemini e Ollama**: cloud via Gemini ou local via Ollama.
-- **Fallback global**: todos os agentes usam a mesma ordem de modelos.
+- **Fallback global**: todos os agentes usam a mesma ordem de modelos, agora priorizando Gemini 3.
+- **Fallback transparente**: quando uma rota falha e outra responde, o CLI informa qual modelo e key deram certo.
 - **Fallback multi-key**: no Gemini, a ordem das API keys cadastradas define prioridade.
 - **Terminal persistente**: comandos rodam em uma janela PowerShell externa por sessao.
+- **Preferencia por Windows Terminal**: no Windows, quando iniciado pelo `cmd.exe` classico, o Toug pode relancar a si mesmo no Windows Terminal.
 - **Log bruto de terminal**: tudo que acontece no terminal da sessao e salvo em `terminal.log`.
 - **`@terminal`**: anexa o log bruto do terminal ao contexto da IA.
 - **`@terminal:N`**: anexa apenas as ultimas N linhas.
@@ -136,6 +138,46 @@ O usuario nao precisa escolher modelo por agente. A ordem de fallback e unica pa
 - API key Gemini, se for usar Gemini cloud.
 
 O CLI tambem pode usar Ollama em outro servidor, desde que o endpoint esteja configurado.
+
+---
+
+## Windows Terminal
+
+No Windows, o Toug funciona melhor no Windows Terminal.
+
+Quando o comando `toug` e executado em um console Windows interativo fora do Windows Terminal e o Windows Terminal ja esta instalado, o CLI pergunta:
+
+```text
+O Toug funciona melhor em Windows Terminal, aceita prosseguir para ele?
+```
+
+Opcoes:
+
+- `Sim`: abre uma nova janela/aba do Windows Terminal executando o mesmo comando `toug` e encerra o processo atual.
+- `Nao`: encerra o processo atual.
+- `Nao perguntar novamente`: pede uma confirmacao extra:
+
+```text
+Selecionando essa opcao voce concorda em sempre executar por padrao o comando Toug pelo Windows Terminal?
+```
+
+Se confirmado, o Toug grava uma preferencia interna e, nas proximas execucoes fora do Windows Terminal, relanca automaticamente no Windows Terminal.
+
+Quando o Windows Terminal nao esta instalado, o CLI pergunta:
+
+```text
+O Toug funciona melhor em Windows Terminal, gostaria de instala-lo para melhor funcionamento e uso?
+```
+
+Se confirmado, o Toug executa:
+
+```bash
+winget install --id Microsoft.WindowsTerminal -e --accept-package-agreements --accept-source-agreements
+```
+
+Apos instalacao bem-sucedida, a preferencia interna de abrir pelo Windows Terminal e ativada automaticamente.
+
+Essa preferencia nao aparece no `/config`. O fluxo nao roda durante `npm run start`, para nao atrapalhar desenvolvimento local.
 
 ---
 
@@ -277,18 +319,41 @@ Modelos Ollama usados no fallback atual:
 A ordem de fallback e global para todos os agentes:
 
 ```text
-1. gemini-2.5-pro
-2. gemini-2.5-flash
-3. gemini-2.0-flash
-4. gemini-2.5-flash-lite
-5. gemini-2.0-flash-lite
-6. qwen3:14b
-7. qwen3:8b
+1. gemini-3.1-pro-preview
+2. gemini-3-flash-preview
+3. gemini-2.5-pro
+4. gemini-3.1-flash-lite
+5. gemini-2.5-flash
+6. gemini-2.5-flash-lite
+7. gemini-2.0-flash
+8. gemini-2.0-flash-lite
+9. qwen3:14b
+10. qwen3:8b
 ```
 
 Quando o provider ativo e Gemini, o CLI tenta os modelos Gemini seguindo a ordem acima para a key atual. Ao esgotar as rotas disponiveis, passa para a proxima key cadastrada. Se nao houver rota Gemini utilizavel, o fallback final pode cair para Ollama, quando configurado.
 
 Quando o provider ativo e Ollama, o CLI usa apenas as rotas Ollama disponiveis.
+
+Quando uma rota falha por limite/cota e outra rota gera resposta, o CLI imprime a rota que efetivamente funcionou:
+
+```text
+[Fallback] Rota bem-sucedida: Gemini (Model: gemini-3-flash-preview, Key: Principal).
+```
+
+Para fallback local:
+
+```text
+[Fallback] Rota bem-sucedida: Ollama (Model: qwen3:14b).
+```
+
+Observacao sobre nomes comerciais e IDs de API:
+
+- Gemini 3.1 Pro usa o ID `gemini-3.1-pro-preview`;
+- Gemini 3 Flash usa o ID `gemini-3-flash-preview`;
+- Gemini 3.1 Flash-Lite usa o ID `gemini-3.1-flash-lite`.
+
+Se a API key ativa nao tiver acesso ou cota para uma rota, o fallback segue para a proxima.
 
 ---
 
@@ -559,7 +624,7 @@ A publicacao npm permanece uma acao manual do owner.
 
 ### `/terminal` nao abriu janela
 
-- Confirme que esta usando uma versao atual (`1.1.12` ou superior).
+- Confirme que esta usando uma versao atual (`1.1.16` ou superior).
 - Feche e reabra o processo `toug` apos atualizar o pacote global.
 - No Windows, instale ou habilite Windows Terminal (`wt.exe`).
 - Se `wt.exe` nao existir, o CLI tenta fallback via `cmd start`.

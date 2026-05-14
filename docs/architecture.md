@@ -35,7 +35,7 @@ A Fase 13 introduz um sistema de resiliência e otimização de custos ao `Toug-
 
 ### `ModelRegistry`
 - **Caminho:** `src/agents/modelRegistry.ts`
-- **Modificações:** Retorna `string[]` ordenado. (ex: `['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.5-flash-lite']`).
+- **Modificações:** Retorna rotas ordenadas de fallback. Ordem atual: `gemini-3.1-pro-preview`, `gemini-3-flash-preview`, `gemini-2.5-pro`, `gemini-3.1-flash-lite`, `gemini-2.5-flash`, `gemini-2.5-flash-lite`, `gemini-2.0-flash`, `gemini-2.0-flash-lite`, `qwen3:14b`, `qwen3:8b`.
 
 ### `OllamaClient`
 - **Modificações:** Nova requisição `POST /api/generate` passando `{"model": "nome", "keep_alive": 0}` para forçar o unload da memória RAM local.
@@ -50,8 +50,8 @@ A Fase 13 introduz um sistema de resiliência e otimização de custos ao `Toug-
 4. Heurística de Roteamento avalia e pode forçar switch para Ollama.
 5. Inicia laço de Fallback:
    - Tenta Modelo `0` com Key `0`.
-   - Se Erro 429/503: Tenta Modelo `0` com Key `1`.
-   - Se acabar keys: Tenta Modelo `1` com Key `0`.
+   - Se Erro 429/503: Tenta Modelo `1` com Key `0`.
+   - Se acabar modelos Gemini da key atual: tenta a proxima key.
    - Se acabar tudo (Gemini): Tenta Ollama `14b`.
    - Se falhar no Ollama `14b`: Faz unload, tenta `8b`.
 6. Stream retornado processa Tool Calls normalmente.

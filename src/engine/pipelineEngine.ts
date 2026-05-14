@@ -121,6 +121,7 @@ export class PipelineEngine {
                 const routesToTry = getGlobalFallbackRoutes(config.lastProvider);
                 let currentRouteIndex = 0;
                 let currentKeyIndex = 0;
+                let fallbackWasTriggered = false;
 
                 while (!generationSuccessful && !this.currentAbortController?.signal.aborted) {
                     const route = routesToTry[currentRouteIndex];
@@ -249,6 +250,7 @@ export class PipelineEngine {
 
                         if (currentProvider === 'gemini') {
                             if (isExhausted) {
+                                fallbackWasTriggered = true;
                                 const keyAlias = config.gemini.apiKeys[currentKeyIndex]?.alias || `Chave ${currentKeyIndex}`;
                                 yield `\n${COLORS.YELLOW}[Fallback] Limite atingido no Gemini (Model: ${model}, Key: ${keyAlias}). Tentando proxima rota...${COLORS.RESET}\n`;
 
@@ -276,6 +278,7 @@ export class PipelineEngine {
                                 throw error; // Fatais
                             }
                         } else if (currentProvider === 'ollama') {
+                            fallbackWasTriggered = true;
                             yield `\n${COLORS.YELLOW}[Fallback] Erro no Ollama (Model: ${model}). Tentando proximo modelo...${COLORS.RESET}\n`;
                             currentRouteIndex++;
 
@@ -300,6 +303,16 @@ export class PipelineEngine {
 
                 if (!generationSuccessful) {
                     break;
+                }
+
+                if (fallbackWasTriggered) {
+                    const successfulRoute = routesToTry[currentRouteIndex];
+                    if (successfulRoute?.provider === 'gemini') {
+                        const keyAlias = config.gemini.apiKeys[currentKeyIndex]?.alias || `Chave ${currentKeyIndex}`;
+                        yield `\n${COLORS.GREEN}[Fallback] Rota bem-sucedida: Gemini (Model: ${successfulRoute.model}, Key: ${keyAlias}).${COLORS.RESET}\n`;
+                    } else if (successfulRoute?.provider === 'ollama') {
+                        yield `\n${COLORS.GREEN}[Fallback] Rota bem-sucedida: Ollama (Model: ${successfulRoute.model}).${COLORS.RESET}\n`;
+                    }
                 }
 
                 this.history.push({ role: 'assistant', content: assistantResponse });

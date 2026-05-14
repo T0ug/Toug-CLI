@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import fs from 'fs';
 import path from 'path';
-import { execSync } from 'child_process';
+import { execSync, spawn, spawnSync } from 'child_process';
 import { PipelineEngine } from './engine/pipelineEngine';
 import { OllamaClient } from './engine/ollamaClient';
 import { detectProjectState } from './engine/projectDetector';
@@ -14,6 +14,129 @@ import { openTerminal, readTerminalLog } from './engine/terminalSessionManager';
 import { MarkdownRenderer } from './cli/markdownRenderer';
 
 const CANCEL = '__cancel__';
+const WINDOWS_TERMINAL_RELAUNCH_FLAG = 'TOUG_WT_RELAUNCHED';
+
+const shouldPreferWindowsTerminalHost = (): boolean => {
+    return process.platform === 'win32'
+        && !process.env.WT_SESSION
+        && !process.env[WINDOWS_TERMINAL_RELAUNCH_FLAG]
+        && !process.env.npm_lifecycle_event
+        && Boolean(process.stdin.isTTY)
+        && Boolean(process.stdout.isTTY);
+};
+
+const hasExecutable = (name: string): boolean => {
+    if (process.platform !== 'win32') return false;
+    const result = spawnSync('where.exe', [name], { stdio: 'ignore', windowsHide: true });
+    return result.status === 0;
+};
+
+const relaunchInWindowsTerminal = (): boolean => {
+    const child = spawn('wt.exe', ['-d', process.cwd(), process.execPath, ...process.argv.slice(1)], {
+        detached: true,
+        stdio: 'ignore',
+        windowsHide: false,
+        env: {
+            ...process.env,
+            [WINDOWS_TERMINAL_RELAUNCH_FLAG]: '1'
+        }
+    });
+
+    child.unref();
+    return !child.killed;
+};
+
+const installWindowsTerminal = (): boolean => {
+    const wingetExists = hasExecutable('winget.exe');
+    if (!wingetExists) {
+        console.log(`${COLORS.RED}winget nao foi encontrado neste Windows.${COLORS.RESET}`);
+        console.log(`${COLORS.YELLOW}Instale o Windows Terminal manualmente pela Microsoft Store ou habilite o App Installer.${COLORS.RESET}`);
+        return false;
+    }
+
+    const result = spawnSync('winget', [
+        'install',
+        '--id',
+        'Microsoft.WindowsTerminal',
+        '-e',
+        '--accept-package-agreements',
+        '--accept-source-agreements'
+    ], {
+        stdio: 'inherit',
+        windowsHide: false
+    });
+
+    return result.status === 0;
+};
+
+async function ensureWindowsTerminalHost(): Promise<boolean> {
+    if (!shouldPreferWindowsTerminalHost()) {
+        return true;
+    }
+
+    const config = loadConfig();
+    const wtInstalled = hasExecutable('wt.exe');
+
+    if (wtInstalled && config.windowsTerminal.autoLaunch) {
+        relaunchInWindowsTerminal();
+        return false;
+    }
+
+    if (wtInstalled) {
+        const choice = await selectMenu([
+            { label: 'Sim', value: 'yes' },
+            { label: 'Nao', value: 'no' },
+            { label: 'Nao perguntar novamente', value: 'always' }
+        ], 'O Toug funciona melhor em Windows Terminal, aceita prosseguir para ele?');
+
+        if (choice === 'yes') {
+            relaunchInWindowsTerminal();
+            return false;
+        }
+
+        if (choice === 'always') {
+            const confirm = await selectMenu([
+                { label: 'Sim', value: 'yes' },
+                { label: 'Nao', value: 'no' }
+            ], 'Selecionando essa opcao voce concorda em sempre executar por padrao o comando Toug pelo Windows Terminal?');
+
+            if (confirm === 'yes') {
+                config.windowsTerminal.autoLaunch = true;
+                saveConfig(config);
+                relaunchInWindowsTerminal();
+            }
+
+            return false;
+        }
+
+        return false;
+    }
+
+    const installChoice = await selectMenu([
+        { label: 'Sim', value: 'yes' },
+        { label: 'Nao', value: 'no' }
+    ], 'O Toug funciona melhor em Windows Terminal, gostaria de instala-lo para melhor funcionamento e uso?');
+
+    if (installChoice !== 'yes') {
+        return false;
+    }
+
+    const installed = installWindowsTerminal();
+    if (!installed) {
+        return false;
+    }
+
+    config.windowsTerminal.autoLaunch = true;
+    saveConfig(config);
+
+    if (!hasExecutable('wt.exe')) {
+        console.log(`${COLORS.YELLOW}Windows Terminal foi instalado, mas o comando wt.exe ainda nao ficou disponivel nesta sessao. Abra o Toug novamente.${COLORS.RESET}`);
+        return false;
+    }
+
+    relaunchInWindowsTerminal();
+    return false;
+}
 
 async function chooseBoolean(title: string, currentValue?: boolean): Promise<boolean | null> {
     const current = typeof currentValue === 'boolean' ? ` atual: ${currentValue ? 'Sim' : 'Nao'}` : '';
@@ -460,6 +583,12 @@ function appendTerminalMentions(input: string, cwd: string): { input: string; ap
 }
 
 async function main() {
+    const shouldContinue = await ensureWindowsTerminalHost();
+    if (!shouldContinue) {
+        closeChat();
+        process.exit(0);
+    }
+
     const logo = `
 \x1b[35m████████╗ ██████╗ ██╗   ██╗ ██████╗ \x1b[0m
 \x1b[35m╚══██╔══╝██╔═══██╗██║   ██║██╔════╝ \x1b[0m
