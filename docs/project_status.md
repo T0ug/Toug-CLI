@@ -2,7 +2,9 @@
 
 ## Status atual
 
-Fase 14 concluida e validada manualmente. Discovery, Architect, Orchestrator e tasks formais 023-026 concluidos. Task 026 validada pelo Reviewer com ressalvas e validacao manual final atestada pelo usuario.
+Fase 15 concluida e validada sem ressalvas pelo owner apos validacao manual. Hotfixes posteriores aplicados para abertura visual do terminal persistente no Windows Terminal, leitura concorrente de `terminal.log`, isolamento do gatilho de terminal antes de enviar contexto a IA e bloqueio de transicoes de pipeline iniciadas pelo modelo foram confirmados.
+
+Task 027 concluida e confirmada. Task 028 implementada e aprovada. Task 029 implementada e aprovada. Task 030 implementada e aprovada. Task 031 implementada e aprovada. Task 032 aprovada sem ressalvas.
 
 ## Concluido
 
@@ -20,45 +22,43 @@ Fase 14 concluida e validada manualmente. Discovery, Architect, Orchestrator e t
 - [x] README, package metadata e release polish.
 - [x] Otimizacao de modelos locais.
 - [x] Reforco de UX de ferramentas.
-- [x] Fase 12 - Provedores Globais e Gemini (todas 7 tasks validadas).
-- [x] Fase 13 - Fallback Multi-Modelo, Menções de Arquivo e Gestão de Sessões (todas 5 tasks validadas).
-- [x] Fase 14 - Discovery (Understanding Lock confirmado).
-- [x] Fase 14 - Thinking Display, UX Interativa e Correcoes (tasks 023-026 implementadas, validadas e testadas manualmente).
+- [x] Fase 12 - Provedores Globais e Gemini.
+- [x] Fase 13 - Fallback Multi-Modelo, Mencoes de Arquivo e Gestao de Sessoes.
+- [x] Fase 14 - Thinking Display, UX Interativa e Correcoes.
+- [x] Fase 15 - Discovery.
+- [x] Fase 15 - Terminal Persistente, Logs e Fallback Unificado.
 
-## Nova evolucao validada - 2026-05-13
+## Nova evolucao em Discovery - 2026-05-14
 
-Discovery concluiu e o usuario confirmou o Understanding Lock para a Fase 14: thinking display, UX interativa e correções.
+Understanding Lock confirmado para Fase 15.
 
 ### Confirmado
 
-- Thinking display em cinza escuro com toggle no /config.
-- Menus interativos com setas do teclado em todos os lugares.
-- Menu principal: "Iniciar nova conversa" / "Configurações" / "Sessões anteriores".
-- Remover análise visual do diretório e prompt de retomar sessão.
-- ToolRunner com stdin conectado para comandos interativos.
-- Fix Ctrl+C durante streaming.
-- Fluxo completo de API keys com apelido e loop de adição.
-- `/sessoes` com paginacao de 5 sessoes, total exibido e salvamento por sessao ativa em vez de snapshots sucessivos.
-- Persistencia de sessoes organizada por pastas: `<hash-do-projeto>/<session_id>/session.json`.
-- Comando `/menu` para retornar ao menu principal durante o REPL.
-- `/config` com gerenciamento de API Keys Gemini: apagar, renomear e alterar prioridade.
-- Gemini thinking solicitado com `includeThoughts` e `thinkingBudget` automatico quando o toggle esta ativo.
-- Fallback Gemini ajustado para trocar modelo antes de trocar API key.
-- Menus interativos preservam blocos informativos acima e limpam apenas as linhas do proprio menu durante navegacao por setas.
-- ToolRunner no Windows alinhado para executar comandos via PowerShell, com instrucoes para agentes evitarem comandos Unix como `ls`, `grep` e `cat`.
+- Terminal externo persistente por sessao.
+- Primeiro comando da IA abre o terminal automaticamente.
+- `/terminal` abre ou reabre o terminal da sessao.
+- Comandos da IA rodam sempre no mesmo terminal.
+- Log persistente por sessao com horario.
+- `run_command` deve retornar output baseado no log real.
+- `@terminal` anexa o log bruto inteiro.
+- `@terminal:N` anexa as ultimas N linhas.
+- Sessao carregada mantem acesso ao log antigo.
+- Terminal de sessao antiga reabre apenas por `/terminal` ou comando da IA.
+- Reabertura usa diretorio inicial da sessao, sem restaurar estado vivo.
+- `/help` lista comandos existentes.
+- Fallback unico para todos os agentes: Gemini 2.5 Pro, Gemini 2.5 Flash, Gemini 2 Flash, Gemini 2.5 Flash Lite, Gemini 2 Flash Lite, qwen3:14b, qwen3:8b.
+- Logs serao enviados brutos para IA, sem redaction automatica.
+- Autocomplete de mencoes fica fora desta fase.
 
-### Proxima fase
+### Resultado
 
-- Proxima acao: push final para GitHub
-- Skill indicada: nenhuma
-- Status: **FASE 14 CONCLUIDA E VALIDADA MANUALMENTE**.
-
-## Validado manualmente
-
-- [x] Navegacao por setas, preservacao de blocos informativos acima sem acumulo de menus e `/sessoes` no Windows Terminal.
-- [x] Fluxo real de API key + alias + gerenciamento de prioridade persistindo no config JSON.
-- [x] `/menu` durante uma conversa.
-- [x] Comportamento de Gemini thinking em ambiente real com `showThinking=true`.
+- Status: **FASE 15 CONCLUIDA E VALIDADA SEM RESSALVAS**.
+- Hotfix: `/terminal` passa a abrir via `wt.exe` quando disponivel, com fallback para `cmd start`, e nao usa mais runner headless silencioso.
+- Hotfix: leituras de `terminal.log` agora fazem retry curto em `EBUSY`/`EPERM`/`EACCES`, evitando que `run_command` retorne erro enquanto o runner ainda escreve no log.
+- Hotfix: o gatilho de terminal e consumido pelo CLI; a IA recebe apenas o log anexado e ferramentas sao bloqueadas nessa rodada salvo nova acao explicita do usuario.
+- Hotfix: `/status` e perguntas sobre o estado atual da pipeline sao respondidas pelo CLI, e `transition_state` vindo do modelo e bloqueado sem alterar estado.
+- Ressalvas: encerradas por validacao manual do owner em 2026-05-14.
+- Proxima acao: push final para o GitHub, se aprovado pelo owner.
 
 ## Pendente operacional
 

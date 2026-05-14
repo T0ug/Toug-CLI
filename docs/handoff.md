@@ -2,88 +2,57 @@
 
 ## Task
 
-- ID: 026
-- Nome: Fase 14.4 - Menu Principal, Migracao UX e Fluxo de API Keys
-- Agente responsavel: Executor
+- ID: 032
+- Nome: Fase 15.6 - Validacao Integrada e Polish
+- Agente responsavel: Reviewer
+- Status: Aprovada sem ressalvas
 
-## Objetivo
+## Resultado
 
-Refatorar o fluxo principal do CLI para usar `selectMenu` nas selecoes interativas, implementar o menu principal de 3 opcoes e completar o fluxo de API keys com apelido e loop.
+Fase 15 concluida e validada sem ressalvas pelo owner em 2026-05-14.
 
-## Escopo Executado
+Foram validados terminal persistente, log persistente por sessao, retorno de `run_command` baseado no log real, comandos internos `/terminal` e `/help`, mencoes `@terminal` e `@terminal:N`, e fallback global de modelos para todos os agentes.
 
-- Atualizado `src/index.ts` para importar e usar `selectMenu`.
-- Corrigido `src/cli/selectMenu.ts` para chamar `process.stdin.resume()` apos `rl.pause()` e `setRawMode(true)`, evitando encerramento imediato do processo no PowerShell/Windows Terminal.
-- Corrigido `src/cli/selectMenu.ts` para renderizar menus longos com janela paginada e redesenho limpo, evitando sobreposicao de linhas no Windows Terminal.
-- Corrigido `src/cli/selectMenu.ts` para preservar blocos informativos impressos acima do menu durante navegacao por setas, limpando apenas as linhas renderizadas pelo proprio menu.
-- Implementado menu principal com `Iniciar nova conversa`, `Configuracoes` e `Sessoes anteriores`.
-- Removida a exibicao da analise visual do diretorio e do `projectState.summary` no start.
-- Removido o prompt automatico de retomar sessao anterior.
-- Mantido `detectProjectState()` de forma silenciosa ao iniciar nova conversa.
-- Refatorado `configWizard()` para usar `selectMenu` em escolhas de provider e confirmacao de endpoint.
-- Refatorado `/config` para usar `selectMenu` nas opcoes de Provider, Auto-approve e Mostrar pensamento da IA.
-- Adicionado toggle persistente de `showThinking` no `/config`.
-- Implementado fluxo de API keys Gemini com apelido, fallback `Key_N` e loop `Adicionar outra` / `Voltar`.
-- Refatorado `/sessoes` para listar acoes por `selectMenu`, mantendo carregar e apagar sessoes.
-- Ajustado `/sessoes` para mostrar uma sessao por linha e abrir submenu de acao (`Carregar sessao`, `Apagar sessao`, `Voltar`), evitando duplicacao de linhas.
-- Ajustado `/sessoes` para exibir 5 sessoes por pagina, com navegacao `Pagina anterior` / `Proxima pagina`, total de sessoes e indicador da pagina atual.
-- Ajustada a semantica de salvamento: uma sessao agora corresponde ao arquivo ativo da conversa; salvamentos seguintes atualizam esse arquivo em vez de criar snapshots com segundos de diferenca.
-- Alterado o armazenamento de sessoes para estrutura em pastas: `~/.toug-cli/sessions/<hash-do-projeto>/<session_id>/session.json`.
-- Adicionada migracao best-effort dos arquivos JSON legados soltos para pastas de sessao quando o CLI lista, carrega ou salva sessoes daquele projeto.
-- Adicionado comando `/menu` no REPL para voltar ao menu principal sem encerrar o CLI.
-- Ajustado `Iniciar nova conversa` pelo menu para limpar o historico da conversa atual antes de preparar novo estado.
-- Adicionado gerenciamento de API Keys Gemini em `/config`: listar prioridade, adicionar, renomear apelido, apagar, mover prioridade para cima e mover prioridade para baixo.
-- Ajustado Gemini thinking para solicitar `thinkingConfig` com `includeThoughts: true` e `thinkingBudget: -1` quando `showThinking` estiver ativo.
-- Centralizado o fallback Gemini no `PipelineEngine`; o provider Gemini agora tenta apenas a key indicada pelo engine, evitando tentativas duplicadas e logs confusos.
-- Ajustada a ordem de fallback Gemini para trocar todos os modelos da key atual antes de trocar para a proxima API key.
-- Ajustado `src/engine/toolRunner.ts` para executar comandos no Windows via `powershell.exe`, evitando divergencia entre descricao PowerShell e execucao real via `cmd.exe`.
-- Atualizadas instrucoes dos agentes e descricao da ferramenta Gemini para preferir comandos PowerShell nativos (`Get-ChildItem`, `Test-Path`, `Select-String`, `Get-Content`) em vez de comandos Unix como `ls`, `grep` e `cat`.
-- Atualizado `src/engine/pipelineEngine.ts` para migrar aprovacoes de `run_command` e `write_file` para `selectMenu`.
+Hotfix posterior: a abertura visual do terminal persistente foi corrigida para usar `wt.exe` quando disponivel, com fallback para `cmd start`. O fallback headless silencioso foi removido para que `/terminal` nao informe sucesso quando nenhuma janela externa foi confirmada.
 
-## Artefatos Gerados
+Hotfix posterior adicional: leituras concorrentes de `terminal.log` agora toleram locks transitorios (`EBUSY`, `EPERM`, `EACCES`) com retry curto. Isso evita que `run_command` retorne `[TOUG ERROR] EBUSY` enquanto o runner PowerShell ainda esta gravando output volumoso.
 
-- `src/cli/selectMenu.ts`
-- `src/index.ts`
-- `src/data/sessionManager.ts`
-- `src/engine/pipelineEngine.ts`
-- `src/engine/toolRunner.ts`
-- `src/providers/geminiProvider.ts`
-- `src/agents/agentLoader.ts`
-- `docs/task_026.md`
-- `docs/handoff.md`
-- `docs/project_status.md`
+Hotfix posterior adicional: o gatilho de terminal passa a ser consumido pelo CLI antes de chegar a IA. O modelo recebe somente o log anexado e uma instrucao de leitura; o `PipelineEngine` remove o marcador interno antes de salvar/enviar o historico e bloqueia ferramentas se o modelo tentar executar comandos nessa rodada.
+
+Hotfix posterior adicional: o estado da pipeline passa a ser consultado pelo CLI com `/status` ou perguntas naturais sobre estado atual. Solicitações `transition_state` emitidas pelo modelo sao bloqueadas e nao alteram mais a state machine.
+
+## Evidencias principais
+
+- `npm run build` passou apos permissao elevada para escrita em `dist/`.
+- `run_command` retorna `Output do comando executado:` e inclui output real observado em `terminal.log`.
+- `terminalSessionManager.readTerminalLog()` retorna log bruto inteiro, tail por numero de linhas e mensagem clara quando o log ainda nao existe.
+- `@terminal` e tratado antes de `@arquivo`, evitando deduplicacao indevida como mencao de arquivo.
+- `/help` lista comandos e mencoes existentes.
+- `modelRegistry` usa uma lista global unica:
+  1. `gemini-2.5-pro`
+  2. `gemini-2.5-flash`
+  3. `gemini-2.0-flash`
+  4. `gemini-2.5-flash-lite`
+  5. `gemini-2.0-flash-lite`
+  6. `qwen3:14b`
+  7. `qwen3:8b`
+- `PipelineEngine.getActiveConfig()` confirmou `gemini-2.5-pro` como modelo inicial para todos os agentes quando o provider ativo e Gemini.
+
+## Ressalvas encerradas
+
+- O owner validou manualmente a Fase 15 sem ressalvas em 2026-05-14.
+- As ressalvas operacionais anteriores foram encerradas apos os hotfixes e a validacao manual.
+- `git status` foi bloqueado por `dubious ownership` no repositorio dentro de `Program Files`; configurar `safe.directory` destrava a inspeccao Git local.
+
+## Artefatos finais
+
+- `docs/review_report.md`
+- `docs/task_032.md`
 - `docs/tasks.md`
-
-## Validacao / Evidencia
-
-- `npm run build` executado com sucesso com permissao elevada para escrita em `dist/`.
-- `npm run build` executado novamente com sucesso apos correcao do menu de sessoes e paginacao do `selectMenu`.
-- `npm run build` executado novamente com sucesso apos paginacao dedicada de `/sessoes` e correcao da sessao ativa.
-- `npm run build` executado novamente com sucesso apos migrar a persistencia para pastas de sessao.
-- `npm run build` executado novamente com sucesso apos `/menu`, gerenciamento de API keys e ajuste de `thinkingConfig` Gemini.
-- `npm run build` executado novamente com sucesso apos centralizar o fallback Gemini no `PipelineEngine`.
-- `npm run build` executado novamente com sucesso apos ajustar a ordem de fallback para modelo antes de key.
-- `npm run build` executado novamente com sucesso apos ajuste de redesenho do `selectMenu` por contagem de linhas, preservando informacoes acima sem acumular menus.
-- `npx tsc --noEmit` executado com sucesso apos alinhar ToolRunner/PowerShell e instrucoes anti-comandos Unix. `npm run build` sem permissao elevada falhou por EPERM ao escrever em `dist/` dentro de `Program Files`; execucao elevada nao foi autorizada pelo ambiente.
-- Busca estatica executada em `src/index.ts` e `src/engine/pipelineEngine.ts` nao encontrou prompts legados:
-  - `Y/n`
-  - `1=`
-  - `2=`
-  - `numero`
-  - `Escolha uma sessao`
-  - `Retomar?`
-  - `Permitir?`
-  - `Alterar:`
-
-## Limitacoes
-
-- Testes manuais finais de navegacao por setas, `/sessoes`, `/config`, `/menu`, persistencia de API keys e UX de menus foram atestados pelo usuario.
-- Arquivos antigos em `~/.toug-cli/sessions` sao migrados em modo best-effort para pastas quando o CLI acessa as sessoes do projeto; caso a migracao falhe, o leitor legado continua preservado.
-- Gemini retorna pensamento apenas quando o modelo/API envia partes marcadas como `thought`; o CLI solicita essa capacidade, mas nao consegue forcar exibicao se o provider nao devolver pensamentos no stream.
-- O fallback multi-modelo existe no `PipelineEngine`: para Gemini, ele tenta todos os modelos da key atual antes de avancar para a proxima key; ao esgotar keys e modelos, troca para Ollama local.
+- `docs/project_status.md`
+- `docs/decision_log.md`
 
 ## Proxima Acao Sugerida
 
-- Agente: Orchestrator
-- Skill: orchestrate-project
-- Objetivo: Considerar a Task 026 e a Fase 14 concluidas com validacao manual atestada; proxima acao operacional e push final para GitHub ou definicao formal de nova task em `docs/tasks.md`.
+- Push final para GitHub, se aprovado pelo owner.
+- Publicacao npm permanece opcional e manual pelo owner.

@@ -1,70 +1,134 @@
-# Review Report
+# Review Report - Task 032
 
-## Identificacao da Task
+## Task analisada
 
-- Task ID: 026
-- Nome: Fase 14.4 - Menu Principal, Migracao UX e Fluxo de API Keys
-- Data: 2026-05-13
-- Agente avaliador: Reviewer
-
-## Status
-
-Aprovado com ressalvas.
+- ID: 032
+- Nome: Fase 15.6 - Validacao Integrada e Polish
+- Status: Aprovado sem ressalvas
 
 ## Evidencias verificadas
 
-- `src/index.ts` importa e usa `selectMenu`.
-- `src/index.ts` implementa o menu principal com `Iniciar nova conversa`, `Configuracoes` e `Sessoes anteriores`.
-- `src/index.ts` removeu o prompt automatico de retomar sessao e a exibicao de `projectState.summary` no start.
-- `src/index.ts` mantem `detectProjectState()` silencioso ao iniciar nova conversa.
-- `src/index.ts` migrou `configWizard`, `/config`, provider, auto-approve, showThinking e sessoes para `selectMenu`.
-- `src/index.ts` implementa API key Gemini com alias, fallback `Key_N` e loop `Adicionar outra` / `Voltar`.
-- `src/index.ts` ajusta `/sessoes` para selecionar primeiro a sessao e depois a acao, reduzindo a lista e evitando duplicacao de opcoes.
-- `src/index.ts` ajusta `/sessoes` para exibir 5 sessoes por pagina, com navegacao explicita entre paginas, total de sessoes e posicao da sessao selecionavel.
-- `src/data/sessionManager.ts` passa a reutilizar o arquivo ativo da conversa ao salvar, evitando tratar cada autosave/snapshot como uma nova sessao logica.
-- `src/data/sessionManager.ts` passa a salvar novas sessoes em pastas por projeto e sessao, usando `session.json` como arquivo principal.
-- `src/data/sessionManager.ts` mantem compatibilidade e migracao best-effort para arquivos JSON legados soltos em `~/.toug-cli/sessions`.
-- `src/index.ts` adiciona `/menu` no REPL para retornar ao menu principal.
-- `src/index.ts` adiciona gerenciamento de API Keys Gemini no `/config`, incluindo renomear, apagar e mover prioridade.
-- `src/engine/pipelineEngine.ts` dispoe de `clearHistory()` para nova conversa iniciada pelo menu nao reaproveitar o historico anterior.
-- `src/providers/geminiProvider.ts` solicita pensamentos com `includeThoughts: true` e `thinkingBudget: -1` quando `showThinking` esta ativo.
-- `src/providers/geminiProvider.ts` deixa de fazer fallback interno entre keys; a rota de key/modelo fica centralizada no `PipelineEngine`.
-- `src/cli/selectMenu.ts` renderiza menus longos com janela paginada, reduzindo artefatos visuais por scroll.
-- `src/cli/selectMenu.ts` preserva blocos informativos acima do menu ao redesenhar, usando contagem de linhas para limpar apenas a area renderizada pelo proprio menu.
-- `src/engine/toolRunner.ts` executa comandos no Windows via `powershell.exe`, alinhando a execucao real ao contrato descrito aos agentes.
-- `src/agents/agentLoader.ts` e `src/providers/geminiProvider.ts` orientam os agentes a usar cmdlets PowerShell nativos em vez de comandos Unix como `ls`, `grep` e `cat`.
-- `src/engine/pipelineEngine.ts` migrou aprovacoes de `run_command` e `write_file` para `selectMenu`.
-- Busca estatica nao encontrou prompts legados nos fluxos-alvo: `Y/n`, `1=`, `2=`, `numero`, `Escolha uma sessao`, `Retomar?`, `Permitir?`, `Alterar:`.
-- `npm run build` executado com sucesso.
-- `npx tsc --noEmit` executado com sucesso apos correcao PowerShell/anti-`ls`; build com emissao nao foi repetido por falta de permissao elevada no ambiente.
+- `docs/project_status.md`, `docs/handoff.md`, `docs/tasks.md` e `docs/decision_log.md` estavam alinhados antes da validacao: Task 032 liberada para Reviewer.
+- `npm run build` passou com sucesso apos permissao elevada para escrever em `dist/` dentro de `Program Files`.
+- Busca estatica confirmou ausencia das mensagens antigas:
+  - `Comando executado com sucesso`;
+  - `Comando de servidor`;
+  - `isBackgroundCmd`;
+  - deteccoes especiais para `npm run dev`, `npm start`, `vite` ou `expo start`.
+- `src/engine/toolRunner.ts` retorna `Output do comando executado:` com base no log real do terminal.
+- `src/index.ts` contem `/terminal`, `/help`, `appendTerminalMentions()` e trata `@terminal` antes do parser generico de `@arquivo`.
+- `src/index.ts` lista no `/help`: `/exit`, `/menu`, `/config`, `/sessoes`, `/terminal`, `/help`, `?pergunta`, `@arquivo`, `@terminal` e `@terminal:N`.
+- Busca estatica confirmou ausencia de listas diferentes por agente em `modelRegistry`.
+- `src/agents/modelRegistry.ts` exporta a ordem global:
+  1. `gemini-2.5-pro`
+  2. `gemini-2.5-flash`
+  3. `gemini-2.0-flash`
+  4. `gemini-2.5-flash-lite`
+  5. `gemini-2.0-flash-lite`
+  6. `qwen3:14b`
+  7. `qwen3:8b`
+- Validacao com `PipelineEngine.getActiveConfig()` e config Gemini temporaria confirmou `gemini-2.5-pro` como modelo inicial para:
+  - Orchestrator;
+  - Discovery;
+  - Project Research;
+  - Architect;
+  - Executor;
+  - Reviewer.
+- Validacao de `readTerminalLog()` confirmou:
+  - mensagem clara quando nao existe log;
+  - leitura bruta inteira;
+  - `tailLines` retornando apenas as ultimas linhas.
+- Validacao operacional curta de `executeShellCommand()` confirmou:
+  - retorno contem `Output do comando executado:`;
+  - retorno contem output real emitido pelo PowerShell;
+  - `terminal.log` contem o mesmo output real;
+  - runner temporario foi encerrado apos o teste.
 
-## Analise tecnica
+## Verificacao de escopo
 
-A implementacao cumpre o objetivo da Task 026 sem alterar providers, config schema ou logica de fallback. As entradas de texto permanecem apenas onde a task permite: endpoint, API key e alias.
+Escopo cumprido:
 
-O fluxo de sessoes preserva as capacidades existentes de carregar e apagar sessao, agora por menu. As aprovacoes de ferramentas foram migradas no `pipelineEngine.ts` sem modificar a execucao das ferramentas.
+- Terminal persistente por sessao possui artefatos e log persistente.
+- `run_command` foi delegado ao terminal persistente e deixou de retornar sucesso sintetico.
+- `/terminal` e `/help` existem no REPL.
+- `@terminal` e `@terminal:N` leem o log bruto por sessao.
+- Fallback global e unico para todos os agentes foi aplicado.
+- Qwen permanece como fallback via provider Ollama.
 
-O que o CLI conta como sessao: cada entrada listada corresponde a uma pasta `~/.toug-cli/sessions/<hash-do-projeto>/<session_id>/` com `session.json` dentro. A partir desta correcao, uma conversa ativa atualiza esse `session.json`; portanto novos salvamentos nao devem gerar varias entradas com segundos de diferenca. Arquivos legados soltos sao migrados para esse formato quando possivel.
+Fora de escopo preservado:
 
-Fallback de Gemini: o `PipelineEngine` tenta todos os modelos Gemini da key atual antes de avancar para a proxima API key. A ordem das keys no config agora pode ser gerenciada no `/config`.
+- Autocomplete de mencoes nao foi implementado.
+- Publicacao npm nao foi feita.
+- Push GitHub nao foi feito.
+- Nenhuma nova feature fora da Fase 15 foi adicionada nesta validacao.
 
-Thinking de Gemini: o CLI solicita pensamento ao SDK, mas a exibicao depende de o stream retornar partes `thought`. Diferente do Ollama/qwen, o CLI nao consegue exibir raciocinio se Gemini nao enviar esse campo.
+## Ressalvas encerradas
 
-## Ressalvas
+- O owner validou manualmente a Fase 15 sem ressalvas em 2026-05-14.
+- As ressalvas operacionais anteriores foram encerradas apos os hotfixes e a validacao manual.
+- `git status` nao foi obtido porque o Git bloqueou o repositorio como `dubious ownership` em `Program Files`; isso nao bloqueia a validacao tecnica da Fase 15, mas afeta inspecoes Git locais ate configurar `safe.directory`.
 
-- Teste manual real de navegacao por setas no Windows Terminal revelou encerramento imediato apos renderizar o menu; correcao aplicada em `src/cli/selectMenu.ts` para reativar `process.stdin`.
-- Teste manual real de `/sessoes` revelou sobreposicao de linhas com muitas sessoes; correcao aplicada com paginacao e submenu de acoes.
-- Teste manual real de `/sessoes` ainda deve confirmar a navegacao em paginas de 5 sessoes no Windows Terminal.
-- Teste manual real ainda deve confirmar que `/config` e demais menus preservam blocos informativos acima sem acumular menus durante navegacao por setas.
-- Teste manual real ainda deve confirmar a migracao visual dos JSON antigos para pastas em `~/.toug-cli/sessions`.
-- Teste manual real ainda deve confirmar `/menu`, gerenciamento de keys e exibicao de thinking do Gemini em ambiente com API ativa.
-- Nao foi executado teste manual completo de API key + alias persistindo no config JSON neste ambiente.
-- A build precisou de permissao elevada para escrever em `dist/`, pois o projeto esta em `C:\Program Files`.
+## Atualizacao posterior
 
-## Problemas encontrados
+- Usuario reportou que `/terminal` criou log/sessao, mas nao abriu janela externa.
+- Hotfix aplicado em `src/engine/terminalSessionManager.ts`:
+  - removido fallback headless silencioso;
+  - abertura passa a preferir `wt.exe`;
+  - fallback visual usa `cmd start`;
+  - estado do runner registra `visibleWindow`;
+  - runners antigos sem janela sao limpos em best effort.
+- `npx tsc --noEmit` passou.
+- `npm run build` passou.
+- Validacao controlada confirmou escrita de `terminal.log` e `visibleWindow: true`.
 
-Nenhum problema critico ou medio dentro do escopo da Task 026.
+## Atualizacao posterior 2
+
+- Usuario reportou teste com `terminal.log` volumoso em `log_examples`.
+- Evidencia: `session.json` registrou `[TOOL RESULT] Output do comando executado:\n[TOUG ERROR] EBUSY: resource busy or locked, open ...terminal.log`.
+- Diagnostico: o runner PowerShell escrevia no log enquanto o CLI tentava ler o mesmo arquivo para retornar output a IA.
+- Hotfix aplicado em `src/engine/terminalSessionManager.ts`:
+  - retry curto para `fs.readFileSync` e `fs.statSync`;
+  - tratamento de `EBUSY`, `EPERM` e `EACCES`;
+  - `waitForCommandLog()` continua observando ate o timeout em caso de lock transitorio;
+  - `@terminal` retorna mensagem operacional clara se o log continuar ocupado apos retries.
+- `npx tsc --noEmit` passou.
+- `npm run build` passou.
+- `executeInTerminal('Write-Output toug-lock-fix-ok')` retornou output real com sucesso.
+- Instalacao global local atualizada para `toug-cli@1.1.10` para teste imediato.
+
+## Atualizacao posterior 3
+
+- Usuario observou que o uso de terminal deve funcionar como gatilho do CLI, nao como texto literal para a IA.
+- Hotfix aplicado:
+  - contexto anexado nao descreve mais a origem como mencao literal;
+  - `PipelineEngine` detecta marcador interno de contexto de terminal;
+  - marcador interno e removido antes de salvar/enviar historico ao modelo;
+  - se o modelo tentar usar ferramentas nessa rodada, o CLI bloqueia e pede resposta baseada apenas no log anexado.
+- `npx tsc --noEmit` passou.
+- `npm run build` passou.
+- Instalacao global local atualizada para `toug-cli@1.1.11` para teste imediato.
+
+## Atualizacao posterior 4
+
+- Usuario reportou que a pergunta "Em qual estado da pipeline estamos agora" foi enviada ao modelo, que transicionou indevidamente para `ARCHITECT` e iniciou gravações.
+- Hotfix aplicado:
+  - adicionado comando `/status`;
+  - perguntas naturais sobre estado/status da pipeline sao respondidas diretamente pelo CLI;
+  - prompts dos agentes nao anunciam mais `transition_state` como ferramenta disponivel;
+  - `PipelineEngine` bloqueia qualquer `transition_state` emitido pelo modelo e preserva o estado atual.
+- `npx tsc --noEmit` passou.
+- `npm run build` passou.
+- Instalacao global local atualizada para `toug-cli@1.1.12` para teste imediato.
+
+## Atualizacao posterior 5
+
+- Owner confirmou a Fase 15 como validada sem ressalvas.
+- Estado documental consolidado em `project_status.md`, `handoff.md`, `tasks.md`, `review_report.md` e `decision_log.md`.
 
 ## Decisao
 
-A Task 026 esta aprovada com ressalvas. A Fase 14 pode ser considerada implementada e validada com ressalvas, restando validacao manual de UX interativa e pendencias manuais de publicacao.
+APROVADO SEM RESSALVAS.
+
+## Recomendacao
+
+Considerar a Fase 15 concluida sem ressalvas. Proximos passos operacionais: push final para GitHub e publicacao npm apenas se o owner decidir.

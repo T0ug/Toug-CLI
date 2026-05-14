@@ -10,6 +10,7 @@ import { saveSession, compressHistory, listSessions, loadSessionFile, deleteSess
 import { promptUser, printHeader, printError, closeChat, COLORS, onInterrupt } from './cli/chatInterface';
 import { selectMenu } from './cli/selectMenu';
 import { readArtifact } from './engine/artifactManager';
+import { openTerminal, readTerminalLog } from './engine/terminalSessionManager';
 import { MarkdownRenderer } from './cli/markdownRenderer';
 
 const CANCEL = '__cancel__';
@@ -372,6 +373,92 @@ async function chooseMainAction(engine: PipelineEngine, cwd: string): Promise<vo
     }
 }
 
+function printHelp(): void {
+    console.log(`\n${COLORS.CYAN}Comandos disponiveis${COLORS.RESET}`);
+    console.log(`${COLORS.YELLOW}/exit${COLORS.RESET}      Encerra o Toug CLI e salva a sessao atual.`);
+    console.log(`${COLORS.YELLOW}/menu${COLORS.RESET}      Abre o menu principal.`);
+    console.log(`${COLORS.YELLOW}/config${COLORS.RESET}    Abre as configuracoes globais.`);
+    console.log(`${COLORS.YELLOW}/sessoes${COLORS.RESET}   Lista, carrega ou apaga sessoes anteriores.`);
+    console.log(`${COLORS.YELLOW}/terminal${COLORS.RESET}  Abre ou reabre o terminal persistente da sessao atual.`);
+    console.log(`${COLORS.YELLOW}/status${COLORS.RESET}    Mostra o estado atual da pipeline e o modelo ativo.`);
+    console.log(`${COLORS.YELLOW}/help${COLORS.RESET}      Mostra esta ajuda.`);
+    console.log(`${COLORS.YELLOW}?pergunta${COLORS.RESET}  Executa uma pergunta simples em modo rapido.`);
+    console.log(`${COLORS.YELLOW}@arquivo${COLORS.RESET}   Anexa o conteudo de um arquivo ao prompt.`);
+    console.log(`${COLORS.YELLOW}@terminal${COLORS.RESET}  Anexa o log bruto inteiro do terminal da sessao.`);
+    console.log(`${COLORS.YELLOW}@terminal:N${COLORS.RESET} Anexa as ultimas N linhas do log bruto do terminal.\n`);
+}
+
+function normalizeForIntent(input: string): string {
+    return input
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^\w\s/]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function isPipelineStatusQuestion(input: string): boolean {
+    const normalized = normalizeForIntent(input);
+    const asksStatus = normalized.includes('estado') || normalized.includes('status');
+    const mentionsPipeline = normalized.includes('pipeline') || normalized.includes('fase') || normalized.includes('agent') || normalized.includes('agente');
+    const asksCurrent = normalized.includes('atual') || normalized.includes('agora') || normalized.includes('estamos') || normalized.includes('estou');
+
+    return asksStatus && mentionsPipeline && asksCurrent;
+}
+
+function printPipelineStatus(engine: PipelineEngine): void {
+    const active = engine.getActiveConfig();
+    console.log(`\n${COLORS.CYAN}Status da pipeline${COLORS.RESET}`);
+    console.log(`${COLORS.YELLOW}Estado:${COLORS.RESET} ${engine.getState()}`);
+    console.log(`${COLORS.YELLOW}Agente:${COLORS.RESET} ${active.role}`);
+    console.log(`${COLORS.YELLOW}Provider:${COLORS.RESET} ${active.provider}`);
+    console.log(`${COLORS.YELLOW}Modelo:${COLORS.RESET} ${active.model}`);
+    if (active.keyAlias) {
+        console.log(`${COLORS.YELLOW}API key:${COLORS.RESET} ${active.keyAlias}`);
+    }
+    console.log('');
+}
+
+async function openSessionTerminal(cwd: string): Promise<void> {
+    try {
+        const info = await openTerminal(cwd);
+        console.log(`\n${COLORS.GREEN}Terminal persistente solicitado para esta sessao.${COLORS.RESET}`);
+        console.log(`${COLORS.YELLOW}Sessao:${COLORS.RESET} ${info.sessionId}`);
+        console.log(`${COLORS.YELLOW}Diretorio inicial:${COLORS.RESET} ${info.cwdInicial}`);
+        console.log(`${COLORS.YELLOW}Log:${COLORS.RESET} ${info.logPath}\n`);
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        printError('Falha ao abrir terminal persistente.', message);
+    }
+}
+
+function appendTerminalMentions(input: string, cwd: string): { input: string; appendedContext: string } {
+    const terminalMentionRegex = /@terminal(?::(\d+))?\b/gi;
+    let appendedContext = '';
+    let match: RegExpExecArray | null;
+
+    while ((match = terminalMentionRegex.exec(input)) !== null) {
+        const rawMention = match[0];
+        const rawTailLines = match[1];
+        const tailLines = rawTailLines ? Number(rawTailLines) : undefined;
+        const log = readTerminalLog(cwd, { tailLines });
+
+        if (tailLines) {
+            console.log(`${COLORS.GREEN}[Anexado: ${rawMention} (${tailLines} linhas)]${COLORS.RESET}`);
+            appendedContext += `\n\n[TOUG_TERMINAL_CONTEXT_READ_ONLY]\nContexto de terminal anexado pelo Toug CLI.\nInstrucao: responda usando somente este log de terminal. Nao execute comandos, nao leia arquivos e nao mude o estado da pipeline, a menos que o usuario tenha pedido explicitamente uma nova acao.\n--- Ultimas ${tailLines} linhas do log do terminal ---\n${log}\n`;
+        } else {
+            console.log(`${COLORS.GREEN}[Anexado: ${rawMention}]${COLORS.RESET}`);
+            appendedContext += `\n\n[TOUG_TERMINAL_CONTEXT_READ_ONLY]\nContexto de terminal anexado pelo Toug CLI.\nInstrucao: responda usando somente este log de terminal. Nao execute comandos, nao leia arquivos e nao mude o estado da pipeline, a menos que o usuario tenha pedido explicitamente uma nova acao.\n--- Log do terminal ---\n${log}\n`;
+        }
+    }
+
+    return {
+        input: input.replace(terminalMentionRegex, '').trim(),
+        appendedContext
+    };
+}
+
 async function main() {
     const logo = `
 \x1b[35m████████╗ ██████╗ ██╗   ██╗ ██████╗ \x1b[0m
@@ -416,7 +503,7 @@ async function main() {
     await chooseMainAction(engine, cwd);
 
     const printCommands = () => {
-        console.log(`\nComandos: ${COLORS.YELLOW}/exit${COLORS.RESET} (sair) | ${COLORS.YELLOW}/menu${COLORS.RESET} (menu) | ${COLORS.YELLOW}/config${COLORS.RESET} (configuracao) | ${COLORS.YELLOW}/sessoes${COLORS.RESET} (historico)\n`);
+        console.log(`\nComandos: ${COLORS.YELLOW}/exit${COLORS.RESET} (sair) | ${COLORS.YELLOW}/menu${COLORS.RESET} (menu) | ${COLORS.YELLOW}/config${COLORS.RESET} (configuracao) | ${COLORS.YELLOW}/sessoes${COLORS.RESET} (historico) | ${COLORS.YELLOW}/terminal${COLORS.RESET} (terminal) | ${COLORS.YELLOW}/status${COLORS.RESET} (pipeline) | ${COLORS.YELLOW}/help${COLORS.RESET} (ajuda)\n`);
     };
 
     printCommands();
@@ -441,6 +528,21 @@ async function main() {
 
         if (input.trim() === '/sessoes') {
             await manageSessions(engine, cwd);
+            continue;
+        }
+
+        if (input.trim() === '/terminal') {
+            await openSessionTerminal(cwd);
+            continue;
+        }
+
+        if (input.trim() === '/status' || isPipelineStatusQuestion(input)) {
+            printPipelineStatus(engine);
+            continue;
+        }
+
+        if (input.trim() === '/help') {
+            printHelp();
             continue;
         }
 
@@ -473,9 +575,12 @@ async function main() {
             continue;
         }
 
+        const terminalMentions = appendTerminalMentions(input, cwd);
+        input = terminalMentions.input;
+
         const mentionRegex = /@([\w./\-\\]+)/g;
         let match;
-        let appendedContext = '';
+        let appendedContext = terminalMentions.appendedContext;
 
         while ((match = mentionRegex.exec(input)) !== null) {
             const filepath = match[1];

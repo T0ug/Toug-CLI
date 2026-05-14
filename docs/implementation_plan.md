@@ -1,59 +1,56 @@
-# Implementation Plan - Toug CLI Provider Evolution
+# Implementation Plan - Toug CLI
 
 ## Status
 
-Discovery concluido em 2026-05-12.
+Fase 15 Discovery concluido em 2026-05-14.
 
-Architecture concluida em 2026-05-12.
-
-Task formal inicial criada pelo Orchestrator: `docs/task_011.md`.
+Proxima etapa: Architecture da Task 027.
 
 ## Objetivo
 
-Evoluir o Toug CLI para suportar provedores globais de IA, com Ollama/local e Gemini, mantendo a pipeline forcada, o controle de ferramentas, a seguranca operacional e a criacao disciplinada de artefatos.
+Evoluir o Toug CLI mantendo a pipeline forcada e a rastreabilidade por `docs/`.
 
-## Arquitetura aprovada
+## Evolucao atual - Fase 15
 
-Abordagem escolhida: Provider Layer + Tool Dispatcher + Safety Guard.
+Objetivo da Fase 15: substituir respostas sinteticas de sucesso de comandos por um terminal externo persistente por sessao, com log persistente como fonte de verdade para usuario e IA.
 
 Documentos de referencia:
 
-- `docs/architecture.md`
-- `docs/api_contracts.md`
+- `docs/idea_fase15.md`
+- `docs/scope_fase15.md`
+- `docs/non_goals_fase15.md`
+- `docs/task_027.md`
 - `docs/decision_log.md`
-- `docs/task_011.md`
 
-## Sequencia macro aprovada
+## Sequencia macro da Fase 15
 
-1. Formalizar provider global.
-2. Mover modelos por agente para regras internas.
-3. Adicionar cliente Gemini.
-4. Normalizar ferramentas.
-5. Reforcar seguranca de workspace.
-6. Melhorar persistencia e controle de geracao.
-7. Implementar erros fatais e logs.
-8. Embutir pipeline no CLI.
+1. Projetar arquitetura de terminal persistente por sessao.
+2. Projetar persistencia e leitura de log por sessao.
+3. Projetar `run_command` baseado em log real.
+4. Projetar `/terminal`, `/help`, `@terminal` e `@terminal:N`.
+5. Projetar fallback unico de modelos para todos os agentes.
+6. Dividir implementacao em tasks formais.
+7. Executar apenas apos Architecture aprovada.
 
 ## Proxima acao da pipeline
 
-Executar a Task 011:
+Iniciar a Task 027:
 
-- ID: 011
-- Nome: Fase 12.1 - Base de Providers, Config v2 e Model Registry
-- Agente: Executor
-- Skill: `implement-task`
-- Arquivo: `docs/task_011.md`
+- ID: 027
+- Nome: Fase 15.1 - Arquitetura de Terminal Persistente por Sessao
+- Agente: Architect
+- Skill: `design-architecture`
+- Arquivo: `docs/task_027.md`
 
 ## Assumptions confirmadas
 
-- Projeto continua Windows-only nesta etapa.
-- API keys Gemini ficam em texto puro.
-- Logs podem conter API keys completas.
-- Nao havera configuracao especifica por projeto.
-- Nao havera Codex nesta etapa.
-- Gemini nao deve cair automaticamente para Ollama se falhar totalmente.
-- `transition_state` nao e ferramenta publica do modelo.
+- Foco inicial em Windows/PowerShell.
+- Terminal externo e por sessao.
+- Log bruto pode ser enviado para IA, inclusive provider cloud.
+- Reabertura de sessao antiga nao restaura estado vivo do PowerShell.
+- Autocomplete de mencoes fica fora da Fase 15.
+- Fallback de modelos e igual para todos os agentes.
 
 ## Observacao
 
-Este plano nao substitui a task formal. Para execucao, `docs/task_011.md` e a fonte operacional.
+Este plano nao substitui a task formal. Para a proxima etapa, `docs/task_027.md` e a fonte operacional.

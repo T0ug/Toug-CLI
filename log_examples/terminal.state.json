@@ -1,0 +1,13 @@
+﻿{
+    "sessionId":  "session_2026-05-14T18-18-44",
+    "cwdInicial":  "C:\\Users\\Pratica\\Documents\\GTIN_FACIL\\GTIN-Pratico",
+    "logPath":  "C:\\Users\\Pratica\\.toug-cli\\sessions\\fdu7ms\\session_2026-05-14T18-18-44\\terminal\\terminal.log",
+    "queuePath":  "C:\\Users\\Pratica\\.toug-cli\\sessions\\fdu7ms\\session_2026-05-14T18-18-44\\terminal\\commands.queue",
+    "startedAt":  "2026-05-14T18:18:50.7378386Z",
+    "lastKnownPid":  4188,
+    "visibleWindow":  true,
+    "processedCommandIds":  [
+                                "manual_20260514181928595",
+                                "cmd_20260514182058841_4f9l1i"
+                            ]
+}

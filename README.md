@@ -1,90 +1,182 @@
 # Toug CLI
 
-Assistente de desenvolvimento por IA no terminal, com pipeline disciplinada, provedores local/cloud e controle humano sobre a execucao.
+Assistente de desenvolvimento por IA no terminal, com pipeline disciplinada, provedores local/cloud, sessoes persistentes, terminal externo observavel e controle humano sobre comandos e escrita de arquivos.
 
-O Toug CLI foi feito para apoiar projetos de software seguindo uma pipeline fixa baseada em agentes: Discovery, Architect, Executor, Reviewer, Orchestrator e Project Research. O estado real do projeto fica em `docs/`, e a conversa no terminal serve como interface de trabalho.
+O Toug CLI foi criado para trabalhar em projetos de software sem depender apenas da conversa do chat. O estado real do projeto fica em `docs/`, a pipeline vive em `.agents/`, e a interface de trabalho e o terminal. A IA pode pesquisar, arquitetar, executar e revisar, mas sempre dentro de papeis definidos e com ferramentas controladas.
+
+Versao atual do projeto: `1.1.12`.
+
+Estado atual: **Fase 15 concluida e validada sem ressalvas pelo owner em 2026-05-14**.
 
 ---
 
-## Features
+## O que o Toug CLI faz
 
-- **Pipeline forcada**: state machine com papeis claros para descoberta, arquitetura, execucao, revisao e orquestracao.
-- **Provedores Ollama e Gemini**: use modelos locais via Ollama/Docker ou Gemini via API key.
-- **Fallback multi-modelo e multi-key**: no modo Gemini, o CLI tenta todos os modelos da key atual antes de trocar para a proxima key; ao esgotar tudo, cai para Ollama local.
-- **Modelos internos por agente**: o usuario nao precisa escolher modelos por papel; o `modelRegistry` define a ordem de fallback.
-- **Tool calling**: execucao de comandos, leitura e escrita de arquivos via ferramentas controladas.
-- **Approval gates**: comandos e gravacoes pedem aprovacao, a menos que `autoApproveMode` esteja ativo.
-- **Menus interativos**: navegacao por setas, Enter para selecionar e Ctrl+C para voltar/cancelar.
-- **Menu principal**: iniciar nova conversa, abrir configuracoes ou carregar sessoes anteriores.
-- **Comando `/menu`**: volta ao menu principal durante uma conversa.
-- **Configuracoes pelo terminal**: trocar provider, endpoint Ollama, auto-approve, thinking e API keys Gemini.
-- **Gerenciamento de API keys Gemini**: adicionar, apagar, renomear apelidos e alterar ordem de prioridade.
-- **Sessoes persistentes**: cada sessao fica em uma pasta propria com `session.json`.
-- **Historico paginado**: `/sessoes` mostra 5 sessoes por pagina, com total e pagina atual.
-- **Mencoes `@`**: use `@arquivo` ou `@/pasta` para injetar conteudo no prompt.
-- **Thinking display**: exibe pensamento quando o provider/modelo retorna esse conteudo. No Gemini, o CLI solicita pensamentos, mas a API so exibe se retornar partes `thought`.
-- **Ctrl+C seguro**: durante geracao, interrompe o stream sem fechar o CLI.
+O Toug CLI e um CLI agentico para desenvolvimento assistido por IA. Ele combina:
+
+- pipeline fixa com agentes especializados;
+- estado persistido por projeto e por sessao;
+- provedores Gemini e Ollama;
+- fallback global de modelos;
+- leitura e escrita de arquivos com aprovacao;
+- execucao de comandos em terminal PowerShell persistente;
+- log bruto de terminal por sessao;
+- mencoes de arquivos e do terminal;
+- menus interativos e configuracao global.
+
+A ideia central e simples: a IA ajuda, mas o projeto nao vira uma conversa solta. O CLI mantem disciplina de fluxo, artefatos, estado e revisao.
+
+---
+
+## Estado atual
+
+A Fase 15 esta validada sem ressalvas. Isso significa que o sistema atual ja inclui:
+
+- terminal externo persistente por sessao;
+- abertura manual com `/terminal`;
+- abertura automatica no primeiro comando executado pela IA;
+- execucao de comandos da IA sempre no mesmo terminal da sessao;
+- log persistente em arquivo por sessao;
+- retorno de `run_command` baseado no log real, sem mensagem sintetica de sucesso;
+- leitura de terminal com `@terminal`;
+- leitura parcial com `@terminal:N`;
+- comando `/help`;
+- comando `/status`;
+- fallback global de modelos para todos os agentes;
+- bloqueio de transicoes de pipeline iniciadas pelo modelo;
+- isolamento de `@terminal`, para que a IA receba o log e nao o texto literal da mencao;
+- tolerancia a locks transitorios de `terminal.log` no Windows.
+
+Pendencias atuais registradas em `docs/`:
+
+- push final para GitHub;
+- publicacao npm opcional e manual pelo owner.
+
+---
+
+## Conceitos principais
+
+### Pipeline
+
+O Toug CLI trabalha com uma pipeline fixa. Cada estado tem uma responsabilidade propria:
+
+| Estado | Papel |
+| --- | --- |
+| `IDLE` | Estado neutro, aguardando direcao |
+| `PROJECT_RESEARCH` | Entender um projeto existente a partir de arquivos e docs |
+| `DISCOVERY` | Clarificar intencao, escopo e criterios |
+| `ARCHITECT` | Desenhar arquitetura e plano tecnico |
+| `EXECUTING` | Implementar uma task definida |
+| `REVIEW` | Validar entrega, evidencias e riscos |
+| `ORCHESTRATING` | Analisar estado e sugerir proximo passo |
+
+O estado da pipeline nao deve ser decidido livremente pelo modelo. O CLI responde `/status` e perguntas naturais sobre o estado atual diretamente, e bloqueia tentativas do modelo de transicionar a pipeline por conta propria.
+
+### Docs como fonte de verdade
+
+O estado do projeto deve ser lido de `docs/`, nao da memoria do chat.
+
+Arquivos centrais:
+
+```text
+docs/project_status.md
+docs/handoff.md
+docs/tasks.md
+docs/decision_log.md
+```
+
+Em projetos com `AGENTS.md`, as regras locais tambem devem ser obedecidas. No proprio Toug CLI, por exemplo, antes de agir e obrigatorio ler os quatro arquivos acima.
+
+### Agentes
+
+Os agentes vivem em `.agents/` e representam papeis da pipeline:
+
+- `Orchestrator`: analisa estado e sugere proximo passo;
+- `Discovery`: clarifica intencao;
+- `Project Research`: reconstrui contexto de projeto existente;
+- `Architect`: define arquitetura;
+- `Executor`: implementa tasks;
+- `Reviewer`: valida entrega.
+
+O usuario nao precisa escolher modelo por agente. A ordem de fallback e unica para todos.
+
+---
+
+## Recursos
+
+- **Pipeline disciplinada**: state machine com papeis claros.
+- **Gemini e Ollama**: cloud via Gemini ou local via Ollama.
+- **Fallback global**: todos os agentes usam a mesma ordem de modelos.
+- **Fallback multi-key**: no Gemini, a ordem das API keys cadastradas define prioridade.
+- **Terminal persistente**: comandos rodam em uma janela PowerShell externa por sessao.
+- **Log bruto de terminal**: tudo que acontece no terminal da sessao e salvo em `terminal.log`.
+- **`@terminal`**: anexa o log bruto do terminal ao contexto da IA.
+- **`@terminal:N`**: anexa apenas as ultimas N linhas.
+- **`/terminal`**: abre ou reabre o terminal persistente da sessao.
+- **`/status`**: mostra estado, agente, provider, modelo e alias da key ativa.
+- **`/help`**: lista comandos e mencoes suportados.
+- **Sessoes persistentes**: historico por projeto em `~/.toug-cli/sessions`.
+- **Mencoes de arquivos**: `@arquivo` injeta conteudo no prompt.
+- **Menus interativos**: navegacao por setas e Enter.
+- **Config global**: provider, endpoint, keys, aliases, auto-approve e thinking.
+- **Thinking display**: exibe pensamento quando o provider retorna partes de pensamento.
+- **Approval gates**: comandos e escrita de arquivos pedem aprovacao por padrao.
+- **Ctrl+C seguro**: interrompe streaming sem derrubar o CLI.
 
 ---
 
 ## Requisitos
 
-- Node.js 18+
-- Git
-- Docker com Docker Compose, se for usar Ollama local
-- API key Gemini, se for usar Gemini cloud
+- Node.js 18 ou superior;
+- npm;
+- Git, recomendado;
+- Windows PowerShell, para o terminal persistente no Windows;
+- Windows Terminal (`wt.exe`), recomendado no Windows;
+- Docker e Docker Compose, se for usar Ollama via Docker;
+- API key Gemini, se for usar Gemini cloud.
+
+O CLI tambem pode usar Ollama em outro servidor, desde que o endpoint esteja configurado.
 
 ---
 
 ## Instalacao
 
-Clone o repositorio:
+### Via npm global
+
+```bash
+npm i -g toug-cli@latest
+```
+
+Depois execute:
+
+```bash
+toug
+```
+
+### A partir do repositorio
 
 ```bash
 git clone https://github.com/T0ug/Toug-CLI.git
 cd Toug-CLI
-```
-
-Instale dependencias e compile:
-
-```bash
 npm install
 npm run build
-```
-
-Para usar Ollama via Docker:
-
-```bash
-cd docker
-docker-compose up -d
-```
-
-Baixe os modelos locais:
-
-```cmd
-cd docker
-pull_models.bat
-```
-
-Em Linux/macOS:
-
-```bash
-cd docker
-chmod +x pull_models.sh
-./pull_models.sh
-```
-
-Execute:
-
-```bash
 npm run start
 ```
 
+Para instalar globalmente a partir do clone local:
+
+```bash
+npm install -g .
+toug
+```
+
+Em instalacoes dentro de `C:\Program Files`, `npm run build` pode exigir terminal com permissao administrativa para escrever em `dist/`.
+
 ---
 
-## Configuracao
+## Configuracao inicial
 
-Na primeira execucao, o CLI cria:
+Na primeira execucao, o Toug CLI cria a configuracao global em:
 
 ```text
 ~/.toug-cli/toug.config.json
@@ -118,21 +210,97 @@ Exemplo:
 
 Use `/config` para alterar:
 
-- provider padrao: Ollama ou Gemini;
+- provider ativo: Gemini ou Ollama;
 - endpoint do Ollama;
 - API keys Gemini;
-- apelidos das keys;
-- prioridade das keys;
+- apelidos das API keys;
+- ordem de prioridade das API keys;
 - auto-approve;
-- exibicao de pensamento da IA.
-
-A ordem em `gemini.apiKeys` define a prioridade das keys no fallback.
+- exibicao de pensamento.
 
 ---
 
-## Uso
+## Usando Gemini
 
-Ao iniciar, o CLI mostra o menu principal:
+1. Execute `toug`.
+2. Abra `/config`.
+3. Escolha Gemini como provider.
+4. Cadastre uma ou mais API keys.
+5. Defina apelidos para identificar cada key no terminal.
+6. Ajuste a ordem das keys se quiser controlar a prioridade.
+
+Durante o uso, o Toug mostra o provider, o modelo e, quando aplicavel, o apelido da key ativa.
+
+---
+
+## Usando Ollama
+
+Suba o Ollama localmente ou via Docker.
+
+Com Docker:
+
+```bash
+cd docker
+docker-compose up -d
+```
+
+Baixe os modelos locais no Windows:
+
+```cmd
+cd docker
+pull_models.bat
+```
+
+Em Linux/macOS:
+
+```bash
+cd docker
+chmod +x pull_models.sh
+./pull_models.sh
+```
+
+Depois configure o endpoint no `/config`, por exemplo:
+
+```text
+http://localhost:11434
+```
+
+Modelos Ollama usados no fallback atual:
+
+- `qwen3:14b`;
+- `qwen3:8b`.
+
+---
+
+## Fallback de modelos
+
+A ordem de fallback e global para todos os agentes:
+
+```text
+1. gemini-2.5-pro
+2. gemini-2.5-flash
+3. gemini-2.0-flash
+4. gemini-2.5-flash-lite
+5. gemini-2.0-flash-lite
+6. qwen3:14b
+7. qwen3:8b
+```
+
+Quando o provider ativo e Gemini, o CLI tenta os modelos Gemini seguindo a ordem acima para a key atual. Ao esgotar as rotas disponiveis, passa para a proxima key cadastrada. Se nao houver rota Gemini utilizavel, o fallback final pode cair para Ollama, quando configurado.
+
+Quando o provider ativo e Ollama, o CLI usa apenas as rotas Ollama disponiveis.
+
+---
+
+## Como usar no dia a dia
+
+Entre na pasta do projeto e execute:
+
+```bash
+toug
+```
+
+O CLI detecta o projeto atual pelo diretorio de execucao. Ao iniciar, ele mostra o menu principal:
 
 ```text
 Menu principal
@@ -141,18 +309,105 @@ Menu principal
   Sessoes anteriores
 ```
 
-Durante uma conversa:
+Fluxos comuns:
+
+- Para analisar um projeto existente, inicie uma conversa e explique o objetivo.
+- Para trabalhar seguindo a pipeline, mantenha `docs/` atualizado.
+- Para pedir uma acao pequena, use linguagem natural.
+- Para anexar um arquivo, mencione `@caminho/do/arquivo`.
+- Para ver o terminal persistente, use `/terminal`.
+- Para pedir que a IA leia o terminal, use `@terminal`.
+- Para saber o estado atual da pipeline, use `/status`.
+
+---
+
+## Comandos do REPL
 
 | Comando | Descricao |
 | --- | --- |
+| `/exit` | Salva a sessao atual e encerra o CLI |
 | `/menu` | Volta ao menu principal |
-| `/config` | Abre configuracoes |
-| `/sessoes` | Lista sessoes anteriores |
-| `/exit` | Salva e encerra |
-| `? pergunta` | Usa rota rapida para tarefa simples |
-| `@arquivo` | Injeta um arquivo no contexto |
-| `@/pasta` | Injeta arquivos de uma pasta no contexto |
-| `Ctrl+C` | Interrompe a geracao atual |
+| `/config` | Abre configuracoes globais |
+| `/sessoes` | Lista, carrega ou apaga sessoes anteriores |
+| `/terminal` | Abre ou reabre o terminal persistente da sessao atual |
+| `/status` | Mostra estado da pipeline, agente, provider, modelo e key ativa |
+| `/help` | Mostra ajuda dentro do CLI |
+| `?pergunta` | Executa uma pergunta simples em modo rapido |
+| `@arquivo` | Anexa o conteudo de um arquivo ao prompt |
+| `@terminal` | Anexa o log bruto inteiro do terminal da sessao |
+| `@terminal:N` | Anexa as ultimas N linhas do log bruto do terminal |
+| `Ctrl+C` | Interrompe a geracao atual sem encerrar o CLI |
+
+Exemplos:
+
+```text
+@README.md resuma o projeto
+```
+
+```text
+@terminal o que aconteceu no terminal?
+```
+
+```text
+@terminal:40 veja as ultimas linhas e me diga se o build falhou
+```
+
+```text
+/status
+```
+
+---
+
+## Terminal persistente
+
+A partir da Fase 15, comandos executados pela IA nao dependem mais de uma execucao isolada que pode perder output. O Toug usa um terminal PowerShell persistente por sessao.
+
+Comportamento:
+
+- `/terminal` abre a janela do terminal da sessao;
+- o primeiro comando da IA tambem abre o terminal automaticamente;
+- todos os comandos da IA rodam no mesmo terminal da sessao;
+- o diretorio inicial e o diretorio onde o `toug` foi iniciado;
+- o log e salvo em tempo real;
+- o retorno da ferramenta `run_command` vem do log real;
+- o CLI nao sintetiza mais "comando executado com sucesso" sem output.
+
+No Windows, o CLI tenta abrir via `wt.exe`. Se o Windows Terminal nao estiver disponivel, tenta fallback visual via `cmd start`.
+
+### Onde ficam os logs
+
+Os logs ficam dentro da pasta da sessao:
+
+```text
+~/.toug-cli/sessions/<hash-do-projeto>/<session_id>/terminal/terminal.log
+```
+
+Arquivos relacionados ao terminal:
+
+```text
+terminal.log       log bruto da janela PowerShell
+commands.jsonl     fila de comandos enviada ao runner
+terminal-state.json estado do terminal da sessao
+runner.ps1         script PowerShell usado pelo runner
+```
+
+### `@terminal`
+
+`@terminal` e um gatilho do CLI. A IA nao precisa receber literalmente a palavra `@terminal`; ela recebe o conteudo do log anexado.
+
+Isso evita confusao: quando voce escreve:
+
+```text
+O que aconteceu agora? @terminal
+```
+
+o modelo recebe a pergunta mais o log do terminal. Nessa rodada, ferramentas sao bloqueadas salvo se o usuario pedir explicitamente uma nova acao. O objetivo e fazer a IA observar o terminal, nao sair executando comandos novos.
+
+### Log bruto e privacidade
+
+O log de terminal e bruto. O CLI nao faz redaction automatica.
+
+Se voce usa provider cloud, como Gemini, qualquer conteudo anexado por `@terminal` pode ser enviado ao provider. Evite anexar logs com secrets, tokens ou variaveis sensiveis quando estiver usando provider cloud.
 
 ---
 
@@ -164,60 +419,77 @@ As sessoes ficam em:
 ~/.toug-cli/sessions/<hash-do-projeto>/<session_id>/session.json
 ```
 
-O comando `/sessoes`:
+Cada projeto possui um hash proprio baseado no diretorio. Isso evita misturar historicos de projetos diferentes.
 
-- lista sessoes do projeto atual;
-- mostra 5 por pagina;
-- informa pagina atual e total;
-- permite carregar uma sessao;
-- permite apagar uma sessao.
+O comando `/sessoes` permite:
 
-Arquivos antigos de sessao em formato JSON solto sao migrados em modo best-effort quando o CLI acessa as sessoes do projeto.
+- listar sessoes anteriores do projeto atual;
+- navegar por paginas;
+- carregar uma sessao;
+- apagar uma sessao.
 
----
-
-## Fallback
-
-No modo Gemini, a ordem e:
-
-```text
-Key atual + modelo 1
-Key atual + modelo 2
-Key atual + modelo 3
-Proxima key + modelo 1
-Proxima key + modelo 2
-Proxima key + modelo 3
-Ollama local
-```
-
-Exemplo para o agente Executor:
-
-```text
-gemini-2.5-pro
-gemini-2.5-flash
-gemini-2.5-flash-lite
-qwen3:14b
-qwen3:8b
-```
+Ao carregar uma sessao antiga, o log antigo continua acessivel. O terminal vivo nao e restaurado como processo do passado; se necessario, o CLI reabre uma nova janela para aquela sessao quando voce usar `/terminal` ou quando a IA executar um comando.
 
 ---
 
-## Estrutura
+## Ferramentas da IA
+
+O Toug CLI expoe ferramentas controladas ao modelo:
+
+- leitura de arquivos;
+- escrita de arquivos;
+- execucao de comandos;
+- function calling nativo no Gemini;
+- tool calling em formato XML para rotas compativeis.
+
+Por padrao, acoes sensiveis pedem permissao:
+
+- executar comando;
+- gravar arquivo.
+
+Com `autoApproveMode` ativado, o CLI reduz confirmacoes manuais. Use com cuidado, especialmente em projetos reais.
+
+---
+
+## Estrutura do projeto
 
 ```text
 src/
-  agents/      definicoes de agentes e registro de modelos
-  cli/         interface de terminal
-  data/        configuracoes e sessoes
-  engine/      pipeline, tools e deteccao de projeto
-  providers/   Ollama e Gemini
-  index.ts     entrada principal
+  agents/
+    agentLoader.ts        prompts, instrucoes e ferramentas disponiveis
+    modelRegistry.ts      ordem global de fallback de modelos
+
+  cli/
+    selectMenu.ts         menus interativos com setas
+
+  data/
+    configManager.ts      configuracao global
+    sessionManager.ts     persistencia de sessoes
+
+  engine/
+    pipelineEngine.ts     state machine, streaming, fallback e tools
+    terminalSessionManager.ts terminal persistente, fila e logs
+    toolRunner.ts         execucao de comandos via terminal persistente
+    artifactManager.ts    leitura/escrita controlada de artefatos
+    projectDetector.ts    deteccao de projeto
+
+  providers/
+    geminiProvider.ts     provider Gemini via @google/genai
+    ollamaProvider.ts     provider Ollama
+
+  index.ts                entrada do CLI e REPL
 
 docs/
-  project_status.md
-  handoff.md
-  tasks.md
-  decision_log.md
+  project_status.md       estado oficial do projeto
+  handoff.md              handoff da fase/task atual
+  tasks.md                fonte de verdade das tasks
+  decision_log.md         decisoes arquiteturais e operacionais
+  review_report.md        validacoes e evidencias
+
+.agents/
+  agents/                 definicoes dos agentes
+  skills/                 skills da pipeline
+  workflows/              workflows obrigatorios
 
 docker/
   docker-compose.yml
@@ -229,19 +501,120 @@ docker/
 
 ## Desenvolvimento
 
-Compilar:
+Instalar dependencias:
+
+```bash
+npm install
+```
+
+Compilar TypeScript:
 
 ```bash
 npm run build
 ```
 
-Rodar:
+Executar build local:
 
 ```bash
 npm run start
 ```
 
-Em instalacoes dentro de `C:\Program Files`, o build pode precisar de permissao elevada para escrever em `dist/`.
+Executar como CLI global a partir do repositorio:
+
+```bash
+npm install -g .
+toug
+```
+
+Verificar versao instalada globalmente:
+
+```bash
+npm list -g toug-cli --depth=0
+```
+
+---
+
+## Publicacao
+
+O pacote publica apenas:
+
+```text
+dist/
+README.md
+```
+
+Fluxo tipico:
+
+```bash
+npm run build
+npm version patch --no-git-tag-version
+npm publish
+```
+
+A publicacao npm permanece uma acao manual do owner.
+
+---
+
+## Solucao de problemas
+
+### `/terminal` nao abriu janela
+
+- Confirme que esta usando uma versao atual (`1.1.12` ou superior).
+- Feche e reabra o processo `toug` apos atualizar o pacote global.
+- No Windows, instale ou habilite Windows Terminal (`wt.exe`).
+- Se `wt.exe` nao existir, o CLI tenta fallback via `cmd start`.
+
+### A IA nao viu o que aconteceu no terminal
+
+Use:
+
+```text
+@terminal
+```
+
+ou, para reduzir contexto:
+
+```text
+@terminal:50
+```
+
+### O log esta grande demais
+
+Prefira `@terminal:N`, por exemplo:
+
+```text
+@terminal:80
+```
+
+### O CLI respondeu sobre estado da pipeline de forma estranha
+
+Use:
+
+```text
+/status
+```
+
+Perguntas naturais sobre o estado atual tambem sao interceptadas pelo CLI, mas `/status` e o caminho mais direto.
+
+### `git status` falha com `dubious ownership`
+
+Em diretorios como `C:\Program Files`, o Git pode bloquear o repositorio. Configure `safe.directory` para esse caminho se quiser usar comandos Git ali.
+
+### `npm run build` falha dentro de `C:\Program Files`
+
+Execute o terminal com permissao administrativa ou mova o clone para uma pasta de usuario.
+
+---
+
+## Seguranca e limites
+
+- O Toug CLI pode executar comandos e escrever arquivos quando aprovado.
+- Revise comandos antes de permitir execucao.
+- Logs de terminal sao brutos e podem conter dados sensiveis.
+- `@terminal` envia o log anexado para o modelo ativo.
+- Em provider cloud, evite anexar secrets.
+- `autoApproveMode` deve ser usado apenas quando voce confia no contexto de execucao.
+- O CLI ajuda a disciplinar a pipeline, mas nao substitui revisao humana.
 
 ---
 

@@ -6,10 +6,12 @@ import { COLORS } from '../cli/chatInterface';
 import { selectMenu } from '../cli/selectMenu';
 import { executeShellCommand } from './toolRunner';
 import { readArtifact, writeArtifact } from './artifactManager';
-import { getModelsForProviderRole } from '../agents/modelRegistry';
+import { getGlobalFallbackRoutes } from '../agents/modelRegistry';
 import { createProvider } from './providerFactory';
-import { AIProvider, ProviderMessage } from '../providers/types';
+import { AIProvider, ProviderMessage, ProviderName } from '../providers/types';
 import { saveSession } from '../data/sessionManager';
+
+const TERMINAL_CONTEXT_MARKER = '[TOUG_TERMINAL_CONTEXT_READ_ONLY]';
 
 export class PipelineEngine {
     private state: PipelineState = 'IDLE';
@@ -53,7 +55,7 @@ export class PipelineEngine {
 
     private getModelForRole(role: AgentRole): string {
         const config = loadConfig();
-        return getModelsForProviderRole(config.lastProvider, role)[0];
+        return getGlobalFallbackRoutes(config.lastProvider)[0].model;
     }
 
     public injectContext(content: string): void {
@@ -90,8 +92,11 @@ export class PipelineEngine {
             this.transition('ORCHESTRATING');
         }
 
+        const terminalReadOnlyMode = userInput.includes(TERMINAL_CONTEXT_MARKER);
+        const modelUserInput = userInput.replaceAll(TERMINAL_CONTEXT_MARKER, '').trim();
+        let blockedTerminalToolAttempts = 0;
         let keepRunning = true;
-        this.history.push({ role: 'user', content: userInput });
+        this.history.push({ role: 'user', content: modelUserInput });
         saveSession(this.history, this.state, process.cwd());
 
         try {
@@ -113,14 +118,19 @@ export class PipelineEngine {
                 let generationSuccessful = false;
 
                 // Controle de Fallback
-                let currentProvider = config.lastProvider;
-                let modelsToTry = getModelsForProviderRole(currentProvider, role);
-                let currentModelIndex = 0;
+                const routesToTry = getGlobalFallbackRoutes(config.lastProvider);
+                let currentRouteIndex = 0;
                 let currentKeyIndex = 0;
 
                 while (!generationSuccessful && !this.currentAbortController?.signal.aborted) {
+                    const route = routesToTry[currentRouteIndex];
+                    if (!route) {
+                        throw new Error('Nenhuma rota de modelo disponivel para fallback.');
+                    }
+
+                    const currentProvider: ProviderName = route.provider;
+                    const model = route.model;
                     this.provider = createProvider(currentProvider);
-                    const model = modelsToTry[currentModelIndex];
 
                     try {
                         const stream = this.provider.stream({
@@ -242,18 +252,23 @@ export class PipelineEngine {
                                 const keyAlias = config.gemini.apiKeys[currentKeyIndex]?.alias || `Chave ${currentKeyIndex}`;
                                 yield `\n${COLORS.YELLOW}[Fallback] Limite atingido no Gemini (Model: ${model}, Key: ${keyAlias}). Tentando proxima rota...${COLORS.RESET}\n`;
 
-                                currentModelIndex++;
+                                const nextRouteIndex = currentRouteIndex + 1;
 
-                                if (currentModelIndex >= modelsToTry.length) {
-                                    currentModelIndex = 0;
+                                if (routesToTry[nextRouteIndex]?.provider === 'gemini') {
+                                    currentRouteIndex = nextRouteIndex;
+                                } else {
                                     currentKeyIndex++;
 
                                     const maxKeys = config.gemini.apiKeys.length || 1;
-                                    if (currentKeyIndex >= maxKeys) {
+                                    if (currentKeyIndex < maxKeys) {
+                                        currentRouteIndex = 0;
+                                    } else {
+                                        const firstOllamaRouteIndex = routesToTry.findIndex(route => route.provider === 'ollama');
+                                        if (firstOllamaRouteIndex === -1) {
+                                            throw new Error(`Gemini falhou em todas as rotas e nao ha fallback Ollama configurado. Ultimo erro: ${error.message}`);
+                                        }
                                         yield `\n${COLORS.YELLOW}[Fallback] Todas as rotas Gemini esgotadas. Trocando para Ollama local...${COLORS.RESET}\n`;
-                                        currentProvider = 'ollama';
-                                        modelsToTry = getModelsForProviderRole('ollama', role);
-                                        currentModelIndex = 0;
+                                        currentRouteIndex = firstOllamaRouteIndex;
                                     }
                                 }
                                 continue;
@@ -262,9 +277,13 @@ export class PipelineEngine {
                             }
                         } else if (currentProvider === 'ollama') {
                             yield `\n${COLORS.YELLOW}[Fallback] Erro no Ollama (Model: ${model}). Tentando proximo modelo...${COLORS.RESET}\n`;
-                            currentModelIndex++;
+                            currentRouteIndex++;
 
-                            if (currentModelIndex >= modelsToTry.length) {
+                            while (routesToTry[currentRouteIndex] && routesToTry[currentRouteIndex].provider !== 'ollama') {
+                                currentRouteIndex++;
+                            }
+
+                            if (currentRouteIndex >= routesToTry.length) {
                                 throw new Error(`Ollama falhou em todos os modelos de fallback. Ultimo erro: ${error.message}`);
                             }
 
@@ -287,6 +306,28 @@ export class PipelineEngine {
 
                 // === TOOL: run_command ===
                 const cmdMatch = /<run_command>([\s\S]*?)<\/run_command>/i.exec(assistantResponse);
+                const readMatch = /<read_file>([\s\S]*?)<\/read_file>/i.exec(assistantResponse);
+                const writeMatch = /<write_file\s+path="([^"]+)">(([\s\S]*?))<\/write_file>/i.exec(assistantResponse);
+                const transMatch = /<transition_state>([\s\S]*?)<\/transition_state>/i.exec(assistantResponse);
+                const hasToolRequest = Boolean(cmdMatch || readMatch || writeMatch || transMatch);
+
+                if (terminalReadOnlyMode && hasToolRequest) {
+                    blockedTerminalToolAttempts++;
+                    const result = '[TOUG SYSTEM] Ferramenta bloqueada: esta resposta deve apenas interpretar o log de terminal anexado. Responda ao usuario com base no log existente sem executar comandos, ler arquivos ou mudar estado.';
+                    this.history.push({ role: 'user', content: `[TOOL RESULT] ${result}` });
+                    yield `\n${COLORS.YELLOW}[TOUG] Ferramenta bloqueada: contexto de terminal somente leitura.${COLORS.RESET}\n`;
+
+                    if (blockedTerminalToolAttempts >= 2) {
+                        yield `${COLORS.YELLOW}[TOUG] O modelo insistiu em usar ferramentas. Encerrando esta rodada para evitar comandos indesejados.${COLORS.RESET}\n`;
+                        saveSession(this.history, this.state, process.cwd());
+                        break;
+                    }
+
+                    keepRunning = false;
+                    saveSession(this.history, this.state, process.cwd());
+                    continue;
+                }
+
                 if (cmdMatch) {
                     const command = cmdMatch[1].trim();
                     let approved = config.autoApproveMode;
@@ -300,8 +341,8 @@ export class PipelineEngine {
                     }
                     if (approved) {
                         yield `\n${COLORS.YELLOW}[Executando...]${COLORS.RESET}\n`;
-                        const result = await executeShellCommand(command);
-                        this.history.push({ role: 'user', content: `[TOOL RESULT] Resultado do comando '${command}':\n${result}` });
+                        const result = await executeShellCommand(command, process.cwd());
+                        this.history.push({ role: 'user', content: `[TOOL RESULT] ${result}` });
                     } else {
                         this.history.push({ role: 'user', content: `[TOOL RESULT] Usuário RECUSOU execução de '${command}'.` });
                     }
@@ -309,7 +350,6 @@ export class PipelineEngine {
                 }
 
                 // === TOOL: read_file ===
-                const readMatch = /<read_file>([\s\S]*?)<\/read_file>/i.exec(assistantResponse);
                 if (readMatch) {
                     const filePath = readMatch[1].trim();
                     const cwd = process.cwd();
@@ -320,7 +360,6 @@ export class PipelineEngine {
                 }
 
                 // === TOOL: write_file ===
-                const writeMatch = /<write_file\s+path="([^"]+)">(([\s\S]*?))<\/write_file>/i.exec(assistantResponse);
                 if (writeMatch) {
                     const filePath = writeMatch[1].trim();
                     const fileContent = writeMatch[2];
@@ -346,13 +385,12 @@ export class PipelineEngine {
                 }
 
                 // === TOOL: transition_state ===
-                const transMatch = /<transition_state>([\s\S]*?)<\/transition_state>/i.exec(assistantResponse);
                 if (transMatch) {
                     const newState = transMatch[1].trim().toUpperCase() as PipelineState;
-                    this.transition(newState);
-                    this.history.push({ role: 'system', content: `[SYSTEM] Transição efetuada com sucesso para o estado: ${newState}. O novo agente agora assume o controle da conversa.` });
-                    yield `\n${COLORS.CYAN}[Estado alterado para: ${newState}]${COLORS.RESET}\n`;
-                    keepRunning = true;
+                    const result = `[TOUG SYSTEM] Transicao de estado bloqueada: o modelo solicitou ${newState}, mas mudancas de estado devem ser feitas pelo controle interno do CLI/workflow, nao por ferramenta do modelo. Estado atual preservado: ${this.state}.`;
+                    this.history.push({ role: 'user', content: `[TOOL RESULT] ${result}` });
+                    yield `\n${COLORS.YELLOW}[TOUG] Transicao de estado bloqueada. Estado atual preservado: ${this.state}.${COLORS.RESET}\n`;
+                    keepRunning = false;
                 }
 
                 saveSession(this.history, this.state, process.cwd());

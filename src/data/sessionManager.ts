@@ -12,6 +12,13 @@ export interface SessionData {
     savedAt: string;
 }
 
+export interface ActiveSessionInfo {
+    id: string;
+    filePath: string;
+    sessionDir: string;
+    cwd: string;
+}
+
 const activeSessionFiles = new Map<string, string>();
 const SESSION_DATA_FILE = 'session.json';
 
@@ -48,6 +55,14 @@ const createSessionPath = (cwd: string, now: Date): { id: string, filePath: stri
     const sessionDir = path.join(getProjectSessionsDir(cwd), id);
     fs.mkdirSync(sessionDir, { recursive: true });
     return { id, filePath: path.join(sessionDir, SESSION_DATA_FILE) };
+};
+
+const getSessionIdFromFilePath = (filePath: string): string => {
+    if (path.basename(filePath) === SESSION_DATA_FILE) {
+        return path.basename(path.dirname(filePath));
+    }
+
+    return path.basename(filePath, path.extname(filePath));
 };
 
 const getSessionRefFromPath = (cwd: string, filePath: string): string => {
@@ -106,6 +121,52 @@ export const startNewSession = (cwd: string): void => {
     activeSessionFiles.delete(cwd);
 };
 
+export const getActiveSessionInfo = (cwd: string): ActiveSessionInfo => {
+    migrateLegacySessions(cwd);
+
+    const now = new Date();
+    let filePath = activeSessionFiles.get(cwd);
+    let id: string | null = null;
+
+    if (filePath && fs.existsSync(filePath)) {
+        try {
+            const existing = JSON.parse(fs.readFileSync(filePath, 'utf8')) as Partial<SessionData>;
+            id = typeof existing.id === 'string' ? existing.id : null;
+        } catch {
+            id = null;
+        }
+    } else {
+        filePath = undefined;
+    }
+
+    if (!filePath) {
+        const created = createSessionPath(cwd, now);
+        id = created.id;
+        filePath = created.filePath;
+
+        const data: SessionData = {
+            id,
+            cwd,
+            state: 'IDLE',
+            history: [],
+            savedAt: now.toISOString()
+        };
+        fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+        activeSessionFiles.set(cwd, filePath);
+    }
+
+    if (!id) {
+        id = getSessionIdFromFilePath(filePath);
+    }
+
+    return {
+        id,
+        filePath,
+        sessionDir: path.dirname(filePath),
+        cwd
+    };
+};
+
 export const saveSession = (history: Message[], state: PipelineState, cwd: string): string => {
     migrateLegacySessions(cwd);
     const now = new Date();
@@ -131,7 +192,7 @@ export const saveSession = (history: Message[], state: PipelineState, cwd: strin
     }
 
     const data: SessionData = {
-        id: id ?? createSessionPath(cwd, now).id,
+        id: id ?? getSessionIdFromFilePath(filePath),
         cwd,
         state,
         history,
