@@ -115,3 +115,10 @@
 | 112 | 2026-05-14 | Fallback informa rota bem-sucedida | Apos uma falha de rota e sucesso em fallback, o CLI imprime provider, modelo e alias da key Gemini usada; pacote passa para `1.1.14` | Executor |
 | 113 | 2026-05-14 | Toug prefere Windows Terminal ao iniciar via cmd.exe | Quando iniciado pelo `cmd.exe` classico, o CLI pode relancar no Windows Terminal, instalar via winget com confirmacao e salvar preferencia interna sem expor controle no `/config`; pacote passa para `1.1.15` | Executor |
 | 114 | 2026-05-14 | Hotfix da deteccao de console Windows no npm global | `CMDCMDLINE` nao foi confiavel no shim global do npm em Windows 10; deteccao passa a usar console Windows interativo fora de WT e fora de `npm run`; pacote passa para `1.1.16` | Executor |
+| 115 | 2026-05-15 | Fase 16 Discovery confirmada | Owner confirmou evolucao para terminal compartilhado observavel, memoria estruturada, contexto automatico de terminal e compressao por IA | Discovery |
+| 116 | 2026-05-15 | ConPTY escolhido como base tecnica | Fidelidade maxima no Windows tem prioridade; MVP pode ser Windows-only inicialmente | Discovery |
+| 117 | 2026-05-15 | Terminal compartilhado tera controle de posse | Usuario e IA nao devem digitar simultaneamente; comandos longos bloqueiam novos comandos ate terminal ficar livre | Discovery |
+| 118 | 2026-05-15 | Contexto de terminal sera automatico e estruturado | CLI compara estado enviado com estado atual e injeta eventos limpos quando houver mudanca | Discovery |
+| 119 | 2026-05-15 | Novo schema de sessao por blocos com sequence global | `conversation`, `toolEvents`, `terminalEvents`, `memory` e `contextState` ficam separados, mas contexto enviado a IA e timeline cronologica | Discovery |
+| 120 | 2026-05-15 | Compressao de contexto sera feita por IA | Limites confirmados: 120k soft, 180k hard; Qwen local 24k soft e 30k hard; memoria comprimida deve ser estruturada | Discovery |
+| 121 | 2026-05-15 | Sessoes antigas nao serao migradas automaticamente | Sessao sem `schemaVersion` ou com versao antiga pode ser carregada, mas sempre mostra aviso de versao anterior | Discovery |

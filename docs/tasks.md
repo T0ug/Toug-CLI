@@ -19,8 +19,24 @@
 
 ## Pendente operacional
 
+- [ ] Task 037 - Fase 16.1 - Arquitetura de Terminal Compartilhado e Memoria Estruturada (`docs/task_037.md`).
 - [ ] Push final para o GitHub.
 - [ ] Publicacao no npm, opcional e manual pelo owner.
+
+## Fase 16 - Terminal Compartilhado Observavel e Memoria Estruturada
+
+Status: Discovery concluido; aguardando Architecture.
+
+- [x] Confirmar ConPTY como base tecnica.
+- [x] Confirmar terminal compartilhado com controle de posse.
+- [x] Confirmar contexto automatico de terminal por eventos estruturados.
+- [x] Confirmar novo schema de sessao com blocos separados e `sequence` global.
+- [x] Confirmar compressao por IA e limites de tokens.
+- [x] Confirmar tratamento de sessoes defasadas por `schemaVersion`.
+
+### Tasks formais
+
+- [ ] Task 037 - Fase 16.1 - Arquitetura de Terminal Compartilhado e Memoria Estruturada (`docs/task_037.md`)
 
 ## Ajustes pos-Fase 15
 

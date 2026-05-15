@@ -2,6 +2,8 @@
 
 ## Status atual
 
+Fase 16 em Discovery concluido e Understanding Lock confirmado pelo owner em 2026-05-15. A proxima acao da pipeline e Architecture da Task 037 para projetar terminal compartilhado observavel baseado em ConPTY, memoria estruturada, contexto automatico de terminal e compressao por IA.
+
 Fase 15 concluida e validada sem ressalvas pelo owner apos validacao manual. Hotfixes posteriores aplicados para abertura visual do terminal persistente no Windows Terminal, leitura concorrente de `terminal.log`, isolamento do gatilho de terminal antes de enviar contexto a IA, bloqueio de transicoes de pipeline iniciadas pelo modelo, atualizacao do fallback global para Gemini 3, feedback de rota bem-sucedida e preferencia de inicializacao em Windows Terminal foram confirmados.
 
 Task 027 concluida e confirmada. Task 028 implementada e aprovada. Task 029 implementada e aprovada. Task 030 implementada e aprovada. Task 031 implementada e aprovada. Task 032 aprovada sem ressalvas.
@@ -65,8 +67,41 @@ Understanding Lock confirmado para Fase 15.
 
 ## Pendente operacional
 
+- [ ] Architecture da Fase 16 - Task 037.
 - [ ] Push final para o GitHub.
 - [ ] Publicacao no npm, opcional e manual pelo owner.
+
+## Nova evolucao em Discovery - 2026-05-15
+
+Understanding Lock confirmado para Fase 16 - Terminal Compartilhado Observavel e Memoria Estruturada.
+
+### Confirmado
+
+- Base tecnica: ConPTY.
+- Escopo inicial: Windows-first/Windows-only aceitavel.
+- `/terminal` mantem o mesmo nome, mas troca a implementacao.
+- Usuario e IA compartilham o terminal, mas nao digitam simultaneamente.
+- IA e responsavel por responder prompts interativos dos comandos que iniciar.
+- Usuario pode digitar comandos no terminal quando a IA nao estiver usando o terminal.
+- Comandos manuais entram automaticamente no contexto da IA quando houver mudanca.
+- Contexto automatico usa eventos limpos e estruturados.
+- Sem redaction automatica.
+- Resultados de ferramenta deixam de ser salvos como `role: "user"`.
+- Novo `session.json` usa `schemaVersion`, `tougVersion`, blocos separados e `sequence` global.
+- Contexto enviado a IA e uma timeline cronologica por `sequence`.
+- Outputs limpos completos ficam salvos em disco.
+- Contexto automatico envia output completo ate 30 linhas; acima disso primeiras 20 + ultimas 10.
+- Comandos manuais enviam comando completo + ultimas 10 linhas.
+- IA pode usar `read_terminal_output(commandId)` autoaprovado para ler output completo.
+- Compressao de contexto usa IA em memoria estruturada.
+- Limites de compressao: 120k soft, 180k hard; Qwen local 24k soft, 30k hard.
+- Cadeia de compressao adequada: `gemini-3.1-pro-preview`, `gemini-3-flash-preview`, `gemini-2.5-pro`, depois `gemini-3.1-flash-lite`.
+- Se necessario e aprovado pelo usuario, modelos inferiores podem ser usados para compressao.
+- Sessoes antigas nao migram automaticamente e mostram aviso sempre que carregadas.
+
+### Proxima acao
+
+- Iniciar Architecture da Task 037 com `design-architecture`.
 
 ## Ajuste posterior - 2026-05-14
 
